@@ -38,6 +38,9 @@ export default defineNuxtConfig({
       ],
     },
   },
+  nitro: {
+    preset: 'cloudflare-pages-static',
+  },
   postcss: {
     plugins: {
       'tailwindcss': {},
