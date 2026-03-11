@@ -8,7 +8,7 @@
         AI tooling and the closing window
       </h1>
       <p class="font-body text-ink-muted mt-4 reveal reveal-d2">
-        March 2026 · ~8 min read
+        11 March 2026 · ~8 min read
       </p>
     </div>
 

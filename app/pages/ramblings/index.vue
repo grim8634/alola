@@ -45,7 +45,7 @@ const posts = [
   {
     slug: 'ai-tooling-and-the-closing-window',
     title: 'AI tooling and the closing window',
-    date: 'March 2026',
+    date: '11 March 2026',
     excerpt: 'We\'re in a unique moment for software development. Simple projects take minutes, complex migrations take weeks instead of months, and the window where human oversight is essential is visibly narrowing.',
   },
 ]
