@@ -41,6 +41,11 @@
 </template>
 
 <script setup>
+useHead({
+  title: 'Ramblings',
+  meta: [{ name: 'description', content: 'Thoughts, notes, and whatever else from Graeme Lawton.' }],
+})
+
 const posts = [
   {
     slug: 'ai-tooling-and-the-closing-window',

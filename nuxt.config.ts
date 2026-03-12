@@ -6,7 +6,15 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/sass/main.scss'],
   app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
+      titleTemplate: '%s — alola.org',
+      meta: [
+        { name: 'description', content: 'Graeme Lawton — serial volunteer, technical nerd, hobby collector, outdoors lover.' },
+        { property: 'og:site_name', content: 'alola.org' },
+        { property: 'og:type', content: 'website' },
+        { name: 'theme-color', content: '#141210' },
+      ],
       link: [
         {
           rel: 'preconnect',

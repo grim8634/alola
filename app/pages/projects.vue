@@ -19,7 +19,7 @@
         :class="'reveal-d' + (i + 2)"
       >
         <div class="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-12">
-          <span class="font-display text-6xl sm:text-7xl font-extrabold text-surface-subtle leading-none select-none shrink-0">
+          <span class="font-display text-6xl sm:text-7xl font-extrabold text-ink-faint/20 leading-none select-none shrink-0">
             {{ String(i + 1).padStart(2, '0') }}
           </span>
           <div>
@@ -51,6 +51,11 @@
 </template>
 
 <script setup>
+useHead({
+  title: 'Projects',
+  meta: [{ name: 'description', content: 'Things Graeme Lawton has built — volunteering, tech, and gaming projects.' }],
+})
+
 const projects = [
   {
     title: '1st Hazel Grove Scouts',

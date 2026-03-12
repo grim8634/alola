@@ -52,6 +52,11 @@
 </template>
 
 <script setup>
+useHead({
+  title: 'About',
+  meta: [{ name: 'description', content: 'About Graeme Lawton — based in the UK, always juggling too many interests at once.' }],
+})
+
 const contacts = [
   { label: 'Email', href: 'mailto:contact@alola.org', display: 'contact@alola.org', external: false },
   { label: 'GitHub', href: 'https://github.com/grim8634', display: 'grim8634', external: true },

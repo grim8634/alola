@@ -287,6 +287,11 @@
 </template>
 
 <script setup>
+useHead({
+  title: 'AI tooling and the closing window',
+  meta: [{ name: 'description', content: 'We\'re in a unique moment for software development. The cost of building is collapsing, and the window where human oversight is essential is visibly narrowing.' }],
+})
+
 const timelineData = [
   { label: 'Dive directory (2023 approach)', time: '~6 weeks', width: '100%', color: 'bg-ink-faint' },
   { label: 'Dive directory (2026, AI-assisted)', time: '~2 days', width: '5%', color: 'bg-accent' },

@@ -32,6 +32,8 @@
 </template>
 
 <script setup>
+useHead({ title: 'Graeme Lawton' })
+
 const sections = [
   { to: '/about', label: 'About', desc: 'Who I am and what drives me.' },
   { to: '/projects', label: 'Projects', desc: 'Things I build and help run.' },
