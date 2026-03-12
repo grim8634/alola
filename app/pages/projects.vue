@@ -5,7 +5,7 @@
         Projects
       </span>
       <h1 class="font-display text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight reveal reveal-d1">
-        Things I've built
+        Things I work on — volunteering, tech, and gaming projects.
       </h1>
     </div>
 
