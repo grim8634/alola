@@ -13,14 +13,16 @@
 
     <div class="py-12 space-y-6 max-w-2xl">
       <p class="font-body text-lg leading-8 text-ink-muted reveal reveal-d2">
-        I'm Graeme — based in the UK, always juggling too many interests at once.
-        I volunteer with my local Scout group, tinker with code, grow things in the
-        garden, and spend as much time outdoors as I can.
+        I'm Graeme — Head of Technology at Cartridge Save, based in the UK.
+        By day I lead the tech team; the rest of the time I'm usually up a
+        mountain, underwater, or making a lot of noise.
       </p>
       <p class="font-body text-lg leading-8 text-ink-muted reveal reveal-d3">
-        I believe in showing up, getting stuck in, and making things happen. Whether
-        it's building something technical, running activities for young people, or just
-        getting my hands dirty — I'm happiest when I'm doing, not watching.
+        I'm a member of Kinder Mountain Rescue Team, a leader at 1st Hazel
+        Grove Scouts, and a trombonist with New Mills Brass Band. When I get
+        the chance I'm off scuba diving somewhere. I like staying busy and
+        I like being useful — most of what I do outside work comes back to
+        one of those two things.
       </p>
     </div>
 
@@ -54,7 +56,7 @@
 <script setup>
 useHead({
   title: 'About',
-  meta: [{ name: 'description', content: 'About Graeme Lawton — based in the UK, always juggling too many interests at once.' }],
+  meta: [{ name: 'description', content: 'About Graeme Lawton — Head of Technology at Cartridge Save, mountain rescue volunteer, Scout leader, brass bander, and diver.' }],
 })
 
 const contacts = [
