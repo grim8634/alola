@@ -18,6 +18,9 @@ logs
 .fleet
 .idea
 
+# Superpowers
+.superpowers
+
 # Local env files
 .env
 .env.*
