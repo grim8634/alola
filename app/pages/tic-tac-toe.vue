@@ -40,6 +40,7 @@
               i === 2 && 'rounded-tr',
               i === 6 && 'rounded-bl',
               i === 8 && 'rounded-br',
+              !winner && !aiThinking && (board[i] === null || fadingCell === i) ? 'cursor-pointer hover:bg-[#111]' : 'cursor-default',
             ]"
             :aria-label="cellLabel(i)"
             @click="handleClick(i)"
@@ -147,8 +148,72 @@ function resetGame() {
   moveHistory.value = { X: [], O: [] }
 }
 
+const WINNING_LINES = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+  [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+  [0, 4, 8], [2, 4, 6],             // diagonals
+]
+
+function checkWinner() {
+  for (const line of WINNING_LINES) {
+    const [a, b, c] = line
+    if (board.value[a] && board.value[a] === board.value[b] && board.value[a] === board.value[c]) {
+      winner.value = board.value[a]
+      winningCells.value = line
+      return true
+    }
+  }
+  if (!isVanishing.value && board.value.every(cell => cell !== null)) {
+    winner.value = 'draw'
+    return true
+  }
+  return false
+}
+
+const aiThinking = ref(false)
+
 function handleClick(i) {
-  // Placeholder — filled in Task 3
+  if (winner.value) return
+  if (aiThinking.value) return
+  // Allow clicking on fading cell — it will be vacated during makeMove
+  if (board.value[i] !== null && fadingCell.value !== i) return
+
+  makeMove(i)
+}
+
+function makeMove(i) {
+  const player = currentPlayer.value
+
+  // Vanishing removal
+  if (isVanishing.value && moveHistory.value[player].length >= 3) {
+    const oldest = moveHistory.value[player].shift()
+    board.value[oldest] = null
+  }
+
+  // Place mark
+  board.value[i] = player
+  moveHistory.value[player].push(i)
+
+  // Check for win/draw
+  if (checkWinner()) return
+
+  // Switch turn
+  currentPlayer.value = player === 'X' ? 'O' : 'X'
+
+  // Trigger AI if needed
+  if (isComputer.value && currentPlayer.value === 'O') {
+    aiThinking.value = true
+    setTimeout(() => {
+      const move = getAiMove()
+      if (move !== null) makeMove(move)
+      aiThinking.value = false
+    }, 400)
+  }
+}
+
+function getAiMove() {
+  // Placeholder — filled in Task 4
+  return null
 }
 </script>
 
