@@ -212,8 +212,49 @@ function makeMove(i) {
 }
 
 function getAiMove() {
-  // Placeholder — filled in Task 4
-  return null
+  const b = [...board.value]
+  const player = currentPlayer.value
+  const opponent = player === 'X' ? 'O' : 'X'
+
+  // In vanishing mode, simulate removal before evaluating
+  if (isVanishing.value && moveHistory.value[player].length >= 3) {
+    const oldest = moveHistory.value[player][0]
+    b[oldest] = null
+  }
+
+  const emptyCells = b.map((cell, i) => cell === null ? i : -1).filter(i => i !== -1)
+
+  // 1. Win: can AI win this turn?
+  for (const i of emptyCells) {
+    b[i] = player
+    if (checkBoard(b, player)) { return i }
+    b[i] = null
+  }
+
+  // 2. Block: can opponent win next turn?
+  for (const i of emptyCells) {
+    const simB = [...b]
+    // Simulate opponent's vanishing removal
+    if (isVanishing.value && moveHistory.value[opponent].length >= 3) {
+      simB[moveHistory.value[opponent][0]] = null
+    }
+    simB[i] = opponent
+    if (checkBoard(simB, opponent)) { return i }
+  }
+
+  // 3. Center
+  if (emptyCells.includes(4)) return 4
+
+  // 4. Corners
+  const corners = [0, 2, 6, 8].filter(i => emptyCells.includes(i))
+  if (corners.length) return corners[Math.floor(Math.random() * corners.length)]
+
+  // 5. Any
+  return emptyCells[Math.floor(Math.random() * emptyCells.length)] ?? null
+}
+
+function checkBoard(b, player) {
+  return WINNING_LINES.some(([a, b2, c]) => b[a] === player && b[b2] === player && b[c] === player)
 }
 </script>
 
