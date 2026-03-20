@@ -37,8 +37,10 @@ Default mode: Classic. Switching modes resets the board.
 - When a player already has 3 marks and places a 4th, their oldest mark is removed simultaneously
 - The oldest mark enters a "fading" visual state when the player has 3 marks on the board, signaling it will vanish on the next move
 - Players cannot place on the fading cell — it is still occupied until removed
+- After the oldest mark is removed (step 2 of turn flow), its cell becomes empty and is a valid placement target for that same move
 - Win detection runs after each placement (after old mark removal), checking the 3 marks currently on board
 - No draws are possible — game continues until someone wins
+- No score tracking — each game is standalone
 
 ## Page Structure
 
@@ -68,7 +70,7 @@ Hybrid GiiKer aesthetic with site brand colors:
 - Glow: `0 0 12px #f59e0b, 0 0 28px rgba(245,158,11,0.4)`
 
 ### O Marks
-- Color: `#22d3ee` (cyan)
+- Color: `#22d3ee` (cyan — local to this component's scoped styles, not a design-system token)
 - CSS circle: `border: 4px solid #22d3ee; border-radius: 50%`
 - Glow: `0 0 12px #22d3ee, 0 0 24px rgba(34,211,238,0.4), inset 0 0 8px rgba(34,211,238,0.3)`
 
@@ -89,15 +91,18 @@ All reactive refs in `<script setup>`:
 - `winningCells`: Array of indices for win highlight
 - `moveHistory`: Object tracking placement order per player — `{ X: [cellIndex, ...], O: [cellIndex, ...] }` (used in vanishing mode, but maintained in all modes for simplicity)
 
+Derived (computed):
+- `fadingCell`: For vanishing modes, the index of the current player's oldest mark when they have 3 marks on board (`moveHistory[currentPlayer][0]`), otherwise `null`. Used for visual styling and click-rejection.
+
 ## Turn Flow
 
 1. Player taps empty cell (not a fading cell)
-2. In vanishing mode: if player has 3 marks, remove their oldest mark from board
-3. Place new mark on tapped cell
+2. In vanishing mode: if player has 3 marks, remove their oldest mark — set `board[moveHistory[player][0]]` to `null` and shift the index off the front of `moveHistory[player]`
+3. Place new mark on tapped cell, push cell index to `moveHistory[player]`
 4. Check for win (all 8 lines) or draw (classic only, all cells filled)
 5. If game over, show result and stop
 6. Switch to other player's turn
-7. In computer modes: after player X moves, AI moves after ~400ms delay
+7. In computer modes: after player X moves, AI moves after ~400ms delay (includes any visual removal animation)
 8. Board is non-interactive during AI delay and after game ends
 
 ## AI Logic
@@ -110,9 +115,7 @@ Simple but competent, evaluated in priority order:
 4. **Corner**: If any corner (cells 0, 2, 6, 8) is open, take one
 5. **Any**: Take any remaining open cell
 
-In vanishing mode, the AI follows the same priority but must also account for:
-- Which of its own marks will vanish (avoid moves that break its own near-win by losing a key mark)
-- The opponent's oldest mark being about to vanish (don't block a line that will break itself)
+In vanishing mode, the AI simulates mark removal before evaluating each candidate move. The same priority order applies (win, block, center, corner, any), but win and block checks are evaluated against the board state *after* the vanishing removal for both players. A block is skipped if the opponent's threatening mark is their oldest and will vanish on their next turn.
 
 ## Responsive / Mobile
 
@@ -121,6 +124,11 @@ In vanishing mode, the AI follows the same priority but must also account for:
 - **Touch targets**: All interactive elements large enough for comfortable tapping
 - **No horizontal scroll**: Everything within mobile viewport
 - **Pass-the-phone UX**: Clear status announcing whose turn is next
+
+## Accessibility
+
+- Cells should have `aria-label` describing position and state (e.g., "Row 1, Column 2: X")
+- Status line should use `aria-live="polite"` so screen readers announce turn changes and results
 
 ## Win Detection
 
