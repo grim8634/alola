@@ -132,7 +132,8 @@ function cellLabel(i) {
   const row = Math.floor(i / 3) + 1
   const col = (i % 3) + 1
   const mark = board.value[i]
-  return `Row ${row}, Column ${col}${mark ? ': ' + mark : ': empty'}`
+  const fading = fadingCell.value === i ? ' (fading)' : ''
+  return `Row ${row}, Column ${col}${mark ? ': ' + mark + fading : ': empty'}`
 }
 
 function setMode(mode) {
@@ -171,6 +172,8 @@ function checkWinner() {
 }
 
 const aiThinking = ref(false)
+let aiTimer = null
+onBeforeUnmount(() => { clearTimeout(aiTimer) })
 
 function handleClick(i) {
   if (winner.value) return
@@ -203,7 +206,7 @@ function makeMove(i) {
   // Trigger AI if needed
   if (isComputer.value && currentPlayer.value === 'O') {
     aiThinking.value = true
-    setTimeout(() => {
+    aiTimer = setTimeout(() => {
       const move = getAiMove()
       if (move !== null) makeMove(move)
       aiThinking.value = false
