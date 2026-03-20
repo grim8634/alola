@@ -34,7 +34,7 @@
           <button
             v-for="(cell, i) in board"
             :key="i"
-            class="aspect-square bg-[#0a0a0a] flex items-center justify-center"
+            class="aspect-square bg-[#0a0a0a] flex items-center justify-center touch-manipulation"
             :class="[
               i === 0 && 'rounded-tl',
               i === 2 && 'rounded-tr',
