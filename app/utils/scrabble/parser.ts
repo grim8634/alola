@@ -109,35 +109,61 @@ function prepareCellForOCR(
   const innerY = Math.floor(cellY) + margin
   const innerSize = Math.floor(cellSize) - 2 * margin
 
-  // Crop out bottom-right 20% (subscript point value)
-  const cropSize = Math.floor(innerSize * 0.8)
+  // Crop out bottom-right 15% (subscript point value)
+  const cropSize = Math.floor(innerSize * 0.85)
+
+  const scale = 3
+  const pad = Math.floor(cropSize * scale * 0.15) // white padding for Tesseract
 
   const cellCanvas = document.createElement('canvas')
-  // Scale up for better OCR accuracy
-  const scale = 3
-  cellCanvas.width = cropSize * scale
-  cellCanvas.height = cropSize * scale
+  cellCanvas.width = cropSize * scale + 2 * pad
+  cellCanvas.height = cropSize * scale + 2 * pad
   const cellCtx = cellCanvas.getContext('2d')!
 
-  // Draw scaled up
+  // Fill with white (padding)
+  cellCtx.fillStyle = '#ffffff'
+  cellCtx.fillRect(0, 0, cellCanvas.width, cellCanvas.height)
+
+  // Draw scaled up into center
   cellCtx.drawImage(
     ctx.canvas,
     innerX, innerY, cropSize, cropSize,
-    0, 0, cropSize * scale, cropSize * scale,
+    pad, pad, cropSize * scale, cropSize * scale,
   )
 
-  // Binarize: dark pixels → black, everything else → white
-  const imageData = cellCtx.getImageData(0, 0, cellCanvas.width, cellCanvas.height)
+  // Adaptive binarization: find the threshold for this specific cell
+  const imageData = cellCtx.getImageData(pad, pad, cropSize * scale, cropSize * scale)
   const data = imageData.data
+
+  // Compute histogram to find a good threshold
+  let darkSum = 0, darkCount = 0
+  let lightSum = 0, lightCount = 0
   for (let i = 0; i < data.length; i += 4) {
     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
-    const val = gray < 130 ? 0 : 255
-    data[i] = val
-    data[i + 1] = val
-    data[i + 2] = val
-    data[i + 3] = 255
+    if (gray < 160) {
+      darkSum += gray
+      darkCount++
+    } else {
+      lightSum += gray
+      lightCount++
+    }
   }
-  cellCtx.putImageData(imageData, 0, 0)
+  // Threshold halfway between average dark and average light
+  const avgDark = darkCount > 0 ? darkSum / darkCount : 60
+  const avgLight = lightCount > 0 ? lightSum / lightCount : 220
+  const threshold = (avgDark + avgLight) / 2
+
+  // Re-read the full canvas (including padding area) and binarize
+  const fullData = cellCtx.getImageData(0, 0, cellCanvas.width, cellCanvas.height)
+  for (let i = 0; i < fullData.data.length; i += 4) {
+    const gray = 0.299 * fullData.data[i] + 0.587 * fullData.data[i + 1] + 0.114 * fullData.data[i + 2]
+    const val = gray < threshold ? 0 : 255
+    fullData.data[i] = val
+    fullData.data[i + 1] = val
+    fullData.data[i + 2] = val
+    fullData.data[i + 3] = 255
+  }
+  cellCtx.putImageData(fullData, 0, 0)
 
   return cellCanvas
 }
