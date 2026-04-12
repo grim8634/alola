@@ -142,96 +142,44 @@ function prepareCellForOCR(
   return cellCanvas
 }
 
-// Recognize letters in tile cells using Tesseract.js
+// Initialize Tesseract worker (reused across calls)
+let tesseractWorker: Tesseract.Worker | null = null
+
+async function getTesseractWorker(): Promise<Tesseract.Worker> {
+  if (!tesseractWorker) {
+    tesseractWorker = await Tesseract.createWorker('eng')
+    await tesseractWorker.setParameters({
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR,
+    })
+  }
+  return tesseractWorker
+}
+
+// Recognize letters in tile cells using Tesseract.js — one cell at a time
 async function recognizeTiles(
   ctx: CanvasRenderingContext2D,
   tileCells: { row: number; col: number; cellX: number; cellY: number }[],
   cellSize: number,
 ): Promise<Map<string, { letter: string; confidence: number }>> {
   const results = new Map<string, { letter: string; confidence: number }>()
-
   if (tileCells.length === 0) return results
 
-  // Create a composite image with all tile cells arranged in a strip
-  // This is faster than calling Tesseract once per cell
-  const margin = Math.floor(cellSize * 0.08)
-  const innerSize = Math.floor(cellSize) - 2 * margin
-  const cropSize = Math.floor(innerSize * 0.8)
-  const scale = 3
-  const cellPx = cropSize * scale
-  const padding = 10 // white padding between cells for Tesseract
+  const worker = await getTesseractWorker()
 
-  const compositeCanvas = document.createElement('canvas')
-  const cols = Math.min(tileCells.length, 10)
-  const rows = Math.ceil(tileCells.length / cols)
-  compositeCanvas.width = cols * (cellPx + padding) + padding
-  compositeCanvas.height = rows * (cellPx + padding) + padding
-  const compCtx = compositeCanvas.getContext('2d')!
-
-  // Fill with white
-  compCtx.fillStyle = '#ffffff'
-  compCtx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height)
-
-  // Draw each cell
-  for (let i = 0; i < tileCells.length; i++) {
-    const { cellX, cellY } = tileCells[i]
-    const cellCanvas = prepareCellForOCR(ctx, cellX, cellY, cellSize)
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const dx = padding + col * (cellPx + padding)
-    const dy = padding + row * (cellPx + padding)
-    compCtx.drawImage(cellCanvas, dx, dy)
-  }
-
-  // Run Tesseract on the composite image
-  try {
-    const { data } = await Tesseract.recognize(compositeCanvas, 'eng', {
-      logger: () => {}, // suppress logging
-    })
-
-    // Parse Tesseract results — extract individual characters
-    // Since cells are laid out in a grid, map characters back by position
-    if (data.symbols) {
-      for (const symbol of data.symbols) {
-        if (!symbol.text || symbol.text.trim().length === 0) continue
-        const char = symbol.text.trim().toUpperCase()
-        if (!/^[A-Z]$/.test(char)) continue
-
-        // Find which cell this character belongs to based on its position
-        const cx = (symbol.bbox.x0 + symbol.bbox.x1) / 2
-        const cy = (symbol.bbox.y0 + symbol.bbox.y1) / 2
-        const col = Math.floor((cx - padding) / (cellPx + padding))
-        const row = Math.floor((cy - padding) / (cellPx + padding))
-        const idx = row * cols + col
-
-        if (idx >= 0 && idx < tileCells.length) {
-          const key = `${tileCells[idx].row},${tileCells[idx].col}`
-          const conf = symbol.confidence / 100
-          // Keep highest confidence match per cell
-          if (!results.has(key) || conf > results.get(key)!.confidence) {
-            results.set(key, { letter: char, confidence: conf })
-          }
-        }
-      }
-    }
-  } catch {
-    // Tesseract failed — fall back to individual cell recognition
-    for (const tile of tileCells) {
-      const cellCanvas = prepareCellForOCR(ctx, tile.cellX, tile.cellY, cellSize)
-      try {
-        const { data } = await Tesseract.recognize(cellCanvas, 'eng', {
-          logger: () => {},
+  for (const tile of tileCells) {
+    const cellCanvas = prepareCellForOCR(ctx, tile.cellX, tile.cellY, cellSize)
+    try {
+      const { data } = await worker.recognize(cellCanvas)
+      const text = data.text.trim().toUpperCase().replace(/[^A-Z]/g, '')
+      if (text.length >= 1) {
+        results.set(`${tile.row},${tile.col}`, {
+          letter: text[0],
+          confidence: data.confidence / 100,
         })
-        const text = data.text.trim().toUpperCase()
-        if (/^[A-Z]$/.test(text)) {
-          results.set(`${tile.row},${tile.col}`, {
-            letter: text,
-            confidence: data.confidence / 100,
-          })
-        }
-      } catch {
-        // Skip this cell
       }
+    } catch {
+      // Skip this cell
     }
   }
 
