@@ -1,8 +1,11 @@
 import { type BoardState, BOARD_SIZE, createEmptyBoard } from './board'
 import {
   isTilePixel,
+  isDarkPixel,
   colorDistance,
   generateReferenceLetters,
+  extractRegions,
+  compareRegions,
   type TileReference,
 } from './tiles'
 
@@ -90,7 +93,7 @@ function classifyCell(
   cellSize: number,
   references: TileReference[],
 ): { letter: string | null; confidence: number } {
-  const margin = Math.floor(cellSize * 0.1)
+  const margin = Math.floor(cellSize * 0.08)
   const innerX = Math.floor(cellX) + margin
   const innerY = Math.floor(cellY) + margin
   const innerSize = Math.floor(cellSize) - 2 * margin
@@ -100,75 +103,51 @@ function classifyCell(
   const imageData = ctx.getImageData(innerX, innerY, innerSize, innerSize)
   const data = imageData.data
 
-  // Count tile-colored pixels
+  // Count tile-colored pixels AND dark (letter ink) pixels
   let tilePixels = 0
+  let darkPixels = 0
   const totalPixels = innerSize * innerSize
   for (let i = 0; i < data.length; i += 4) {
     if (isTilePixel(data[i], data[i + 1], data[i + 2])) {
       tilePixels++
     }
+    if (isDarkPixel(data[i], data[i + 1], data[i + 2])) {
+      darkPixels++
+    }
   }
 
   const tileRatio = tilePixels / totalPixels
-  if (tileRatio < 0.2) {
+  const darkRatio = darkPixels / totalPixels
+
+  // A cell has a tile if it has enough tile-colored background OR
+  // enough dark pixels (letter ink) combined with some tile pixels
+  const hasTile = tileRatio > 0.15 || (darkRatio > 0.08 && tileRatio > 0.05)
+
+  if (!hasTile) {
     return { letter: null, confidence: 1 }
   }
 
-  // Cell has a tile — identify the letter using binarized comparison
-  // Dark pixels on the tile are letter ink
-  const binarized: number[] = []
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
-    binarized.push(gray < 140 ? 1 : 0)
-  }
-
-  // Resize to reference size
-  const refSize = references[0].width
-  const resized = resizeBinary(binarized, innerSize, innerSize, refSize, refSize)
+  // Extract region-based features from this cell
+  const gridSize = 5
+  const cellRegions = extractRegions(data, innerSize, innerSize, gridSize)
 
   // Compare against each reference letter
   let bestMatch: TileReference | null = null
   let bestScore = -1
 
   for (const ref of references) {
-    let matches = 0
-    let total = 0
-    for (let i = 0; i < resized.length && i < ref.pixels.length; i++) {
-      if (resized[i] === 1 || ref.pixels[i] === 1) {
-        total++
-        if (resized[i] === ref.pixels[i]) matches++
-      }
-    }
-    const score = total > 0 ? matches / total : 0
+    const score = compareRegions(cellRegions, ref.regions)
     if (score > bestScore) {
       bestScore = score
       bestMatch = ref
     }
   }
 
-  if (!bestMatch || bestScore < 0.1) {
+  if (!bestMatch || bestScore < 0.5) {
     return { letter: '?', confidence: 0 }
   }
 
   return { letter: bestMatch.letter, confidence: bestScore }
-}
-
-function resizeBinary(
-  source: number[],
-  srcW: number,
-  srcH: number,
-  dstW: number,
-  dstH: number,
-): number[] {
-  const result: number[] = new Array(dstW * dstH)
-  for (let y = 0; y < dstH; y++) {
-    for (let x = 0; x < dstW; x++) {
-      const srcX = Math.floor(x * srcW / dstW)
-      const srcY = Math.floor(y * srcH / dstH)
-      result[y * dstW + x] = source[srcY * srcW + srcX]
-    }
-  }
-  return result
 }
 
 // Parse rack tiles below the board
