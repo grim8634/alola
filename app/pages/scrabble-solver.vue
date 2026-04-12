@@ -116,16 +116,32 @@
 
       <!-- Rack -->
       <div class="flex justify-center mt-6">
-        <div class="flex gap-1">
-          <button
-            v-for="(tile, i) in rackDisplay"
-            :key="'rack-' + i"
-            class="w-8 h-8 sm:w-10 sm:h-10 rounded flex items-center justify-center font-display font-bold text-sm sm:text-base transition-colors"
-            :class="tile ? 'bg-surface-subtle text-ink hover:bg-surface-raised' : 'bg-surface-raised/50 text-ink-faint border border-dashed border-ink-faint/30 hover:border-accent/50'"
-            @click="editRackTile(i)"
-          >
-            {{ tile || '+' }}
-          </button>
+        <div class="flex gap-1 items-center">
+          <template v-if="editingRack">
+            <input
+              ref="rackInputRef"
+              type="text"
+              maxlength="7"
+              class="w-48 sm:w-56 px-3 py-2 rounded bg-surface border border-accent text-ink font-display font-bold text-center text-lg uppercase tracking-widest outline-none"
+              :value="boardState.rack.join('')"
+              placeholder="e.g. USENEO?"
+              @input="onRackInput"
+              @keydown.enter="editingRack = false"
+              @keydown.escape="editingRack = false"
+              @blur="editingRack = false"
+            />
+          </template>
+          <template v-else>
+            <button
+              v-for="(tile, i) in rackDisplay"
+              :key="'rack-' + i"
+              class="w-8 h-8 sm:w-10 sm:h-10 rounded flex items-center justify-center font-display font-bold text-sm sm:text-base transition-colors"
+              :class="tile ? 'bg-surface-subtle text-ink hover:bg-surface-raised' : 'bg-surface-raised/50 text-ink-faint border border-dashed border-ink-faint/30 hover:border-accent/50'"
+              @click="startRackEdit"
+            >
+              {{ tile || '+' }}
+            </button>
+          </template>
         </div>
       </div>
 
@@ -499,27 +515,24 @@ function closeEdit() {
 }
 
 // Rack editing
-function editRackTile(index: number) {
-  const current = boardState.value.rack[index] || ''
-  const value = prompt('Enter a letter (or blank for empty):', current)
-  if (value === null) return
+const editingRack = ref(false)
+const rackInputRef = ref<HTMLInputElement | null>(null)
 
-  const letter = value.toUpperCase().replace(/[^A-Z?]/g, '')
-  const rack = [...boardState.value.rack]
+function startRackEdit() {
+  editingRack.value = true
+  nextTick(() => {
+    const el = Array.isArray(rackInputRef.value) ? rackInputRef.value[0] : rackInputRef.value
+    if (el) {
+      el.focus()
+      el.select()
+    }
+  })
+}
 
-  // Ensure rack has enough slots
-  while (rack.length <= index) rack.push('')
-
-  if (letter) {
-    rack[index] = letter
-  } else {
-    rack.splice(index, 1)
-  }
-
-  // Remove empty trailing entries
-  while (rack.length > 0 && !rack[rack.length - 1]) rack.pop()
-
-  boardState.value.rack = rack
+function onRackInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const value = input.value.toUpperCase().replace(/[^A-Z?]/g, '')
+  boardState.value.rack = value.split('').slice(0, 7)
   hasChanges.value = true
 }
 
