@@ -55,6 +55,7 @@ const navLinks = [
   { to: '/about', label: 'About' },
   { to: '/projects', label: 'Projects' },
   { to: '/ramblings', label: 'Ramblings' },
+  { to: '/scrabble-solver', label: 'Scrabble' },
 ]
 
 function isActive(to) {
