@@ -286,6 +286,46 @@ function tryPlace(
   }
 }
 
+// Check that placed tiles connect to at least one existing tile on the board
+function isConnected(
+  board: BoardState,
+  placed: { row: number; col: number }[],
+): boolean {
+  const hasAnyTile = board.cells.some(row => row.some(cell => cell.letter !== null))
+  if (!hasAnyTile) return true // Empty board — first move, always valid
+
+  for (const { row, col } of placed) {
+    // Check if this placed tile is adjacent to an existing tile
+    if (row > 0 && board.cells[row - 1][col].letter !== null) return true
+    if (row < 14 && board.cells[row + 1][col].letter !== null) return true
+    if (col > 0 && board.cells[row][col - 1].letter !== null) return true
+    if (col < 14 && board.cells[row][col + 1].letter !== null) return true
+  }
+
+  // Also check if the word passes through any existing tiles (inline with placed tiles)
+  // This handles cases where placed tiles extend an existing word
+  if (placed.length > 0) {
+    const dr = placed.length > 1 && placed[1].row !== placed[0].row ? 1 : 0
+    const dc = placed.length > 1 && placed[1].col !== placed[0].col ? 1 : 0
+    if (dr === 0 && dc === 0) {
+      // Single tile — already checked adjacency above
+      return false
+    }
+    // Check if any cell between first and last placed tile has an existing letter
+    let r = placed[0].row
+    let c = placed[0].col
+    const lastR = placed[placed.length - 1].row
+    const lastC = placed[placed.length - 1].col
+    while (r <= lastR && c <= lastC) {
+      if (board.cells[r][c].letter !== null) return true
+      r += dr
+      c += dc
+    }
+  }
+
+  return false
+}
+
 // Build and emit a scored move from placed tiles
 function emitMove(
   board: BoardState,
@@ -294,6 +334,9 @@ function emitMove(
   direction: 'across' | 'down',
   moves: Move[],
 ): void {
+  // Verify the move connects to existing tiles on the board
+  if (!isConnected(board, placed)) return
+
   const score = scoreMove(board, placed, direction, trie)
   if (score === null) return
 
