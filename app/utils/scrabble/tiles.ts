@@ -76,6 +76,7 @@ export function generateReferenceLetters(size: number): TileReference[] {
   for (let code = 65; code <= 90; code++) {
     const letter = String.fromCharCode(code)
     let bestRegions: number[] = []
+    let lastImageData: ImageData | null = null
 
     for (const font of fonts) {
       ctx.fillStyle = '#f0e0c0'
@@ -87,14 +88,12 @@ export function generateReferenceLetters(size: number): TileReference[] {
       ctx.textBaseline = 'middle'
       ctx.fillText(letter, size / 2, size / 2)
 
-      const imageData = ctx.getImageData(0, 0, size, size)
-      // Extract normalized regions (finds bounding box of dark pixels first)
-      const regions = extractNormalizedRegions(imageData.data, size, size, GRID_SIZE)
-      // Use the first font's result (Georgia) as primary
+      lastImageData = ctx.getImageData(0, 0, size, size)
+      const regions = extractNormalizedRegions(lastImageData.data, size, size, GRID_SIZE)
       if (bestRegions.length === 0) bestRegions = regions
     }
 
-    const profiles = extractProfiles(imageData.data, size, size, PROFILE_BINS)
+    const profiles = extractProfiles(lastImageData!.data, size, size, PROFILE_BINS)
     refs.push({ letter, regions: bestRegions, colProfile: profiles.col, rowProfile: profiles.row })
   }
 
