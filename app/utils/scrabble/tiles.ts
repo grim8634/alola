@@ -1,5 +1,5 @@
 // Reference tile data for Scopely Scrabble app
-// Colors calibrated from actual Scopely screenshots
+// Colors calibrated from actual Scopely screenshots (1125x2436)
 
 export interface TileReference {
   letter: string
@@ -8,20 +8,14 @@ export interface TileReference {
   height: number
 }
 
-// Scopely placed tile background color (warm cream/tan)
-export const TILE_COLOR = { r: 228, g: 208, b: 165 }
-export const TILE_COLOR_TOLERANCE = 35
-
-// Scopely rack tile color (slightly more golden)
-export const RACK_TILE_COLOR = { r: 235, g: 215, b: 165 }
-export const RACK_TILE_COLOR_TOLERANCE = 40
-
-// Board empty cell color (light gray)
-export const BOARD_EMPTY_COLOR = { r: 220, g: 222, b: 228 }
-export const BOARD_EMPTY_TOLERANCE = 20
-
-// Board grid line / border color (medium gray)
-export const BOARD_BORDER_COLOR = { r: 190, g: 195, b: 205 }
+// Actual Scopely colors sampled from screenshots:
+// Empty cell:  rgb(232, 234, 241) — light blue-gray
+// Placed tile: rgb(243, 218, 155) — warm golden
+// DW bonus:    rgb(230, 181, 76)  — orange/gold
+// DL bonus:    rgb(142, 194, 254) — light blue
+// TL bonus:    rgb(66, 132, 208)  — medium blue
+// TW bonus:    rgb(165, 84, 108)  — mauve/dark pink
+// Grid border: rgb(244, 248, 255) — very light blue-white
 
 // Color distance helper
 export function colorDistance(
@@ -31,38 +25,31 @@ export function colorDistance(
   return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
 }
 
-// Check if a pixel color matches a target within tolerance
-export function colorMatches(
-  r: number, g: number, b: number,
-  target: { r: number; g: number; b: number },
-  tolerance: number,
-): boolean {
-  return colorDistance(r, g, b, target.r, target.g, target.b) <= tolerance
-}
-
-// Check if a pixel looks like a placed tile (warm cream/tan)
+// Check if a pixel looks like a placed tile (warm golden: ~243, 218, 155)
 export function isTilePixel(r: number, g: number, b: number): boolean {
-  // Placed tiles are warm-toned: R > G > B, with R in 200-250 range
-  if (r < 190 || r > 255) return false
-  if (g < 170 || g > 240) return false
-  if (b < 130 || b > 200) return false
-  // Must be warm: red channel significantly higher than blue
-  if (r - b < 30) return false
-  return true
+  return colorDistance(r, g, b, 243, 218, 155) < 45
 }
 
-// Check if a pixel is part of the board grid (light gray background)
-export function isBoardGridPixel(r: number, g: number, b: number): boolean {
-  // Board grid cells are neutral light gray
-  const avg = (r + g + b) / 3
-  if (avg < 200 || avg > 240) return false
-  // Must be neutral (not colored like bonus squares)
-  const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b))
-  return maxDiff < 15
+// Check if a pixel is part of the board (any board-like color)
+export function isBoardPixel(r: number, g: number, b: number): boolean {
+  // Empty cell: light blue-gray ~(232, 234, 241)
+  if (colorDistance(r, g, b, 232, 234, 241) < 25) return true
+  // Placed tile: warm golden ~(243, 218, 155)
+  if (isTilePixel(r, g, b)) return true
+  // DW bonus: orange/gold ~(230, 181, 76)
+  if (colorDistance(r, g, b, 230, 181, 76) < 40) return true
+  // DL bonus: light blue ~(142, 194, 254)
+  if (colorDistance(r, g, b, 142, 194, 254) < 40) return true
+  // TL bonus: medium blue ~(66, 132, 208)
+  if (colorDistance(r, g, b, 66, 132, 208) < 40) return true
+  // TW bonus: mauve/dark pink ~(165, 84, 108)
+  if (colorDistance(r, g, b, 165, 84, 108) < 40) return true
+  // Grid lines / borders: light ~(243, 244, 248)
+  if (colorDistance(r, g, b, 243, 244, 248) < 15) return true
+  return false
 }
 
 // Generate reference letter templates by rendering on canvas
-// This avoids needing pre-built screenshot-based reference data
 let cachedReferences: TileReference[] | null = null
 
 export function generateReferenceLetters(size: number): TileReference[] {
@@ -78,23 +65,21 @@ export function generateReferenceLetters(size: number): TileReference[] {
   for (let code = 65; code <= 90; code++) {
     const letter = String.fromCharCode(code)
 
-    // Clear canvas with light background (simulating tile)
-    ctx.fillStyle = '#e4d0a5'
+    // Clear with tile background color
+    ctx.fillStyle = '#f3da9b'
     ctx.fillRect(0, 0, size, size)
 
-    // Draw letter in dark color (simulating Scopely tile font)
+    // Draw letter centered
     ctx.fillStyle = '#1a1a1a'
-    ctx.font = `bold ${Math.floor(size * 0.65)}px Arial, sans-serif`
+    ctx.font = `bold ${Math.floor(size * 0.6)}px Arial, sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(letter, size / 2, size / 2 - 1)
 
-    // Extract binarized pixel data
     const imageData = ctx.getImageData(0, 0, size, size)
     const pixels: number[] = []
     for (let i = 0; i < imageData.data.length; i += 4) {
       const gray = 0.299 * imageData.data[i] + 0.587 * imageData.data[i + 1] + 0.114 * imageData.data[i + 2]
-      // Binary threshold: dark pixels (letter ink) = 1, light pixels (background) = 0
       pixels.push(gray < 128 ? 1 : 0)
     }
 
