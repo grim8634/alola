@@ -1,7 +1,7 @@
 import { type BoardState, BOARD_SIZE, createEmptyBoard } from './board'
 import {
   isTilePixel,
-  isBoardPixel,
+  colorDistance,
   generateReferenceLetters,
   type TileReference,
 } from './tiles'
@@ -28,86 +28,53 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   })
 }
 
-// Detect the board region in a Scopely Scrabble screenshot
+// Check if a pixel matches the TW (Triple Word) square color — mauve/dark pink
+// This is a distinctive color that ONLY appears on the board
+function isTWPixel(r: number, g: number, b: number): boolean {
+  return colorDistance(r, g, b, 165, 84, 108) < 35
+}
+
+// Detect the board region by finding TW corner squares
+// TW squares appear at the 4 corners and edges of the Scrabble board
+// Their distinctive mauve color doesn't appear elsewhere in the Scopely UI
 function detectBoardBounds(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
 ): { x: number; y: number; size: number } | null {
-  const step = Math.max(1, Math.floor(height / 300))
+  const step = Math.max(1, Math.floor(height / 400))
 
-  // Score each row by how many pixels look like board content
-  const rowScores: { y: number; score: number }[] = []
+  // Find all rows and columns that contain TW-colored pixels
+  let minTWy = height
+  let maxTWy = 0
+  let minTWx = width
+  let maxTWx = 0
+  let foundTW = false
+
   for (let y = 0; y < height; y += step) {
     const lineData = ctx.getImageData(0, y, width, 1).data
-    let boardPixels = 0
     for (let x = 0; x < width; x++) {
       const i = x * 4
-      if (isBoardPixel(lineData[i], lineData[i + 1], lineData[i + 2])) {
-        boardPixels++
-      }
-    }
-    rowScores.push({ y, score: boardPixels / width })
-  }
-
-  // Find the longest contiguous stretch of rows with high board pixel density
-  let bestStart = -1
-  let bestEnd = -1
-  let bestLength = 0
-  let start = -1
-
-  for (let i = 0; i < rowScores.length; i++) {
-    if (rowScores[i].score > 0.6) {
-      if (start === -1) start = i
-    } else {
-      if (start !== -1) {
-        const length = i - start
-        if (length > bestLength) {
-          bestStart = start
-          bestEnd = i - 1
-          bestLength = length
-        }
-        start = -1
-      }
-    }
-  }
-  if (start !== -1 && rowScores.length - start > bestLength) {
-    bestStart = start
-    bestEnd = rowScores.length - 1
-    bestLength = bestEnd - bestStart + 1
-  }
-
-  if (bestStart === -1 || bestLength < 10) return null
-
-  const topY = rowScores[bestStart].y
-  const bottomY = rowScores[bestEnd].y
-
-  // Find left and right boundaries by scanning columns at multiple board rows
-  let leftX = width
-  let rightX = 0
-
-  for (const rowIdx of [bestStart, Math.floor((bestStart + bestEnd) / 2), bestEnd]) {
-    const y = rowScores[rowIdx].y
-    const lineData = ctx.getImageData(0, y, width, 1).data
-
-    for (let x = 0; x < width; x++) {
-      const i = x * 4
-      if (isBoardPixel(lineData[i], lineData[i + 1], lineData[i + 2])) {
-        if (x < leftX) leftX = x
-        if (x > rightX) rightX = x
+      if (isTWPixel(lineData[i], lineData[i + 1], lineData[i + 2])) {
+        if (y < minTWy) minTWy = y
+        if (y > maxTWy) maxTWy = y
+        if (x < minTWx) minTWx = x
+        if (x > maxTWx) maxTWx = x
+        foundTW = true
       }
     }
   }
 
-  const boardWidth = rightX - leftX
-  const boardHeight = bottomY - topY
+  if (!foundTW) return null
 
-  // The board is square — use the smaller dimension
-  const size = Math.min(boardWidth, boardHeight)
+  // The board is square. Use the horizontal TW span as the authoritative size
+  // since left/right edges are cleaner than top/bottom (less UI interference)
+  const size = maxTWx - minTWx
 
-  // Center the square within the detected region
-  const x = leftX + Math.floor((boardWidth - size) / 2)
-  const y = topY + Math.floor((boardHeight - size) / 2)
+  // Position: left edge from TW, top calculated from bottom TW edge minus size
+  // This avoids any false TW matches above the board
+  const x = minTWx
+  const y = maxTWy - size
 
   // Sanity: board should be at least 30% of screen width
   if (size < width * 0.3) return null
