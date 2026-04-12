@@ -87,12 +87,14 @@
                   ref="cellInputRef"
                   type="text"
                   maxlength="1"
-                  class="absolute inset-0 w-full h-full text-center text-[10px] sm:text-xs font-display font-bold bg-surface border border-accent outline-none uppercase"
+                  class="absolute inset-0 w-full h-full text-center text-[10px] sm:text-xs font-display font-bold bg-surface border-2 border-accent outline-none uppercase z-10"
                   :value="boardState.cells[row - 1][col - 1].letter || ''"
                   @input="onCellInput($event, row - 1, col - 1)"
-                  @blur="closeEdit"
-                  @keydown.enter="closeEdit"
-                  @keydown.escape="closeEdit"
+                  @blur="onEditBlur"
+                  @keydown.enter.prevent="advanceEdit"
+                  @keydown.tab.prevent="advanceEdit"
+                  @keydown.escape="finishQuickEdit"
+                  @keydown.backspace="onEditBackspace($event, row - 1, col - 1)"
                 />
                 <!-- Highlighted move letter -->
                 <template v-else-if="isHighlightedPosition(row - 1, col - 1)">
@@ -127,10 +129,24 @@
         </div>
       </div>
 
+      <!-- Quick edit progress -->
+      <div v-if="quickEditMode" class="text-center mt-4">
+        <p class="font-body text-ink-muted text-sm">
+          Editing tile {{ quickEditIndex + 1 }} of {{ tileCells.length }} — type a letter, Enter/Tab to advance, Esc to finish
+        </p>
+      </div>
+
       <!-- Actions -->
-      <div class="flex justify-center gap-4 mt-6">
+      <div class="flex flex-wrap justify-center gap-4 mt-6">
         <button
-          v-if="hasChanges"
+          v-if="!quickEditMode"
+          class="font-display text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-md bg-accent text-surface hover:bg-accent-light transition-colors"
+          @click="startQuickEdit"
+        >
+          Quick Edit Tiles
+        </button>
+        <button
+          v-if="hasChanges && !quickEditMode"
           class="font-display text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-md bg-accent text-surface hover:bg-accent-light transition-colors"
           @click="solve"
           :disabled="solving"
@@ -370,12 +386,73 @@ function cellClasses(row: number, col: number): string {
   return classes.join(' ')
 }
 
+// Quick edit mode — cycle through all tile cells rapidly
+const quickEditMode = ref(false)
+const quickEditIndex = ref(0)
+
+// List of cells that have tiles (for quick edit navigation)
+const tileCells = computed(() => {
+  const cells: { row: number; col: number }[] = []
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (boardState.value.cells[r][c].letter !== null) {
+        cells.push({ row: r, col: c })
+      }
+    }
+  }
+  return cells
+})
+
+function startQuickEdit() {
+  if (tileCells.value.length === 0) return
+  quickEditMode.value = true
+  quickEditIndex.value = 0
+  editTileAtIndex(0)
+}
+
+function editTileAtIndex(index: number) {
+  if (index < 0 || index >= tileCells.value.length) {
+    finishQuickEdit()
+    return
+  }
+  quickEditIndex.value = index
+  const cell = tileCells.value[index]
+  editingRow.value = cell.row
+  editingCol.value = cell.col
+  nextTick(() => {
+    const input = cellInputRef.value
+    const el = Array.isArray(input) ? input[0] : input
+    if (el) {
+      el.focus()
+      el.select()
+    }
+  })
+}
+
+function advanceEdit() {
+  if (quickEditMode.value) {
+    editTileAtIndex(quickEditIndex.value + 1)
+  } else {
+    closeEdit()
+  }
+}
+
+function finishQuickEdit() {
+  quickEditMode.value = false
+  quickEditIndex.value = 0
+  editingRow.value = null
+  editingCol.value = null
+  hasChanges.value = true
+}
+
 // Cell editing
 function editCell(row: number, col: number) {
   editingRow.value = row
   editingCol.value = col
   nextTick(() => {
-    cellInputRef.value?.focus()
+    const input = cellInputRef.value
+    const el = Array.isArray(input) ? input[0] : input
+    el?.focus()
   })
 }
 
@@ -387,7 +464,33 @@ function onCellInput(event: Event, row: number, col: number) {
     isBlank: false,
   }
   hasChanges.value = true
-  closeEdit()
+
+  // In quick edit mode, auto-advance after typing a letter
+  if (quickEditMode.value && value) {
+    nextTick(() => advanceEdit())
+  } else if (!quickEditMode.value) {
+    closeEdit()
+  }
+}
+
+function onEditBlur() {
+  // Don't close if in quick edit mode (focus is moving between cells)
+  if (!quickEditMode.value) {
+    closeEdit()
+  }
+}
+
+function onEditBackspace(event: Event, row: number, col: number) {
+  const input = event.target as HTMLInputElement
+  if (!input.value) {
+    // Empty cell + backspace = clear and go to previous in quick edit
+    boardState.value.cells[row][col] = { letter: null, isBlank: false }
+    hasChanges.value = true
+    if (quickEditMode.value && quickEditIndex.value > 0) {
+      event.preventDefault()
+      editTileAtIndex(quickEditIndex.value - 1)
+    }
+  }
 }
 
 function closeEdit() {

@@ -4,8 +4,11 @@ import {
   isDarkPixel,
   colorDistance,
   generateReferenceLetters,
-  extractRegions,
-  compareRegions,
+  extractNormalizedRegions,
+  extractProfiles,
+  compareLetterFeatures,
+  GRID_SIZE,
+  PROFILE_BINS,
   type TileReference,
 } from './tiles'
 
@@ -127,16 +130,17 @@ function classifyCell(
     return { letter: null, confidence: 1 }
   }
 
-  // Extract region-based features from this cell
-  const gridSize = 5
-  const cellRegions = extractRegions(data, innerSize, innerSize, gridSize)
+  // Extract features — normalized regions + projection profiles
+  // Skip bottom-right 18% to exclude subscript point values
+  const cellRegions = extractNormalizedRegions(data, innerSize, innerSize, GRID_SIZE, true, true)
+  const cellProfiles = extractProfiles(data, innerSize, innerSize, PROFILE_BINS, true, true)
 
-  // Compare against each reference letter
+  // Compare against each reference letter using combined similarity
   let bestMatch: TileReference | null = null
   let bestScore = -1
 
   for (const ref of references) {
-    const score = compareRegions(cellRegions, ref.regions)
+    const score = compareLetterFeatures(cellRegions, cellProfiles.col, cellProfiles.row, ref)
     if (score > bestScore) {
       bestScore = score
       bestMatch = ref
