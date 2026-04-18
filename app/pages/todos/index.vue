@@ -211,7 +211,17 @@ const viewTitle = computed(() => {
       <section class="flex-1 min-w-0 flex flex-col" :class="selectedTaskId !== null && 'hidden md:flex'">
         <header class="flex items-baseline justify-between px-4 pt-4 lg:pt-6 pb-2">
           <div>
-            <h1 class="font-display text-2xl font-bold tracking-tight">{{ viewTitle }}</h1>
+            <h1 class="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
+              <span>{{ viewTitle }}</span>
+              <button
+                v-if="categoryId !== null"
+                type="button"
+                class="inline-flex items-center justify-center w-6 h-6 rounded-full text-ink-muted hover:text-ink hover:bg-surface-raised text-lg leading-none"
+                aria-label="Clear category filter"
+                title="Clear category filter"
+                @click="categoryId = null"
+              >×</button>
+            </h1>
             <p class="text-xs text-ink-muted">Signed in as {{ user?.email }}</p>
           </div>
           <button class="text-xs uppercase tracking-wider text-ink-muted border border-ink-faint/20 rounded-md px-2 py-1 hover:text-ink" @click="logout">
