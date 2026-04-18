@@ -1,5 +1,5 @@
 // app/composables/useOnline.ts — reactive navigator.onLine.
-import { ref, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
 
 const online = ref<boolean>(true)
 let listenerAttached = false
