@@ -34,7 +34,9 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel',
   },
-  // Security headers applied broadly; tighter CSP scoped to todos + api.
+  // Security headers. CSP is intentionally NOT set here — Nuxt's hydration
+  // relies on inline scripts, so a strict CSP needs nonce-based integration
+  // (e.g. @nuxtjs/security). Adding that correctly is tracked for Plan 3.
   routeRules: {
     '/**': {
       headers: {
@@ -46,15 +48,6 @@ export default defineNuxtConfig({
     '/todos/**': {
       headers: {
         'X-Frame-Options': 'DENY',
-        'Content-Security-Policy':
-          "default-src 'self'; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data:; " +
-          "script-src 'self'; " +
-          "connect-src 'self'; " +
-          "manifest-src 'self'; " +
-          "worker-src 'self';",
       },
     },
     '/api/**': {

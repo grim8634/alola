@@ -1083,7 +1083,9 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel',
   },
-  // Security headers applied broadly; tighter CSP scoped to todos + api.
+  // Security headers. CSP is intentionally NOT set here — Nuxt's hydration
+  // relies on inline scripts, so a strict CSP needs nonce-based integration
+  // (e.g. @nuxtjs/security). Adding that correctly is tracked for Plan 3.
   routeRules: {
     '/**': {
       headers: {
@@ -1095,15 +1097,6 @@ export default defineNuxtConfig({
     '/todos/**': {
       headers: {
         'X-Frame-Options': 'DENY',
-        'Content-Security-Policy':
-          "default-src 'self'; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data:; " +
-          "script-src 'self'; " +
-          "connect-src 'self'; " +
-          "manifest-src 'self'; " +
-          "worker-src 'self';",
       },
     },
     '/api/**': {
@@ -1125,7 +1118,8 @@ export default defineNuxtConfig({
 Notes:
 - Preset change: `cloudflare-pages-static` → `vercel`.
 - Added Inter to the Google Fonts URL (app UI uses Inter; public site still uses Syne + Lora).
-- `routeRules` sets universal HSTS + nosniff, tighter CSP and X-Frame-Options on the app.
+- `routeRules` sets universal HSTS + nosniff + Referrer-Policy, and X-Frame-Options on `/todos/**` and `/api/**`.
+- **CSP is deliberately omitted.** A strict CSP breaks Nuxt SSR hydration (inline state scripts) and Vite HMR (blob workers). Proper nonce-based CSP integration is scheduled for Plan 3 via `@nuxtjs/security` or equivalent.
 
 - [ ] **Step 3: Restart `npm run dev` and verify headers**
 
@@ -1134,7 +1128,7 @@ curl -i http://localhost:3000/ | head -20
 # Expected: Strict-Transport-Security present
 
 curl -i http://localhost:3000/todos | head -20
-# Expected: X-Frame-Options: DENY + Content-Security-Policy present
+# Expected: X-Frame-Options: DENY present
 # (Will 404 for the page itself until Task 14; headers still apply)
 ```
 
@@ -1556,8 +1550,8 @@ done
 - [ ] **Step 10: Test non-https security headers apply**
 
 ```bash
-curl -sI http://localhost:3000/todos/login | grep -iE '(content-security|x-frame|strict-transport)'
-# Expected: all three headers present
+curl -sI http://localhost:3000/todos/login | grep -iE '(x-frame|strict-transport|x-content-type|referrer)'
+# Expected: X-Frame-Options, Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy all present
 ```
 
 If all ten checks pass, Plan 1's local happy-path is green. Commit any fix-ups from this task as discovered.
