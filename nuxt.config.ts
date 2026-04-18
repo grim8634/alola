@@ -4,6 +4,9 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
   devtools: { enabled: true },
+  modules: [
+    '@vite-pwa/nuxt',
+  ],
   css: ['~/assets/sass/main.scss'],
   app: {
     pageTransition: { name: 'page', mode: 'out-in' },
@@ -34,9 +37,30 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel',
   },
-  // Security headers. CSP is intentionally NOT set here — Nuxt's hydration
-  // relies on inline scripts, so a strict CSP needs nonce-based integration
-  // (e.g. @nuxtjs/security). Adding that correctly is tracked for Plan 3.
+  pwa: {
+    registerType: 'autoUpdate',
+    // InjectManifest: we own the service worker source; Workbox only injects precache.
+    strategies: 'injectManifest',
+    srcDir: 'public',
+    filename: 'service-worker.ts',
+    scope: '/todos/',
+    // Generate sw only for /todos/ scope; the public site doesn't need a SW.
+    workbox: undefined,
+    injectManifest: {
+      globPatterns: [
+        '**/*.{js,css,html,png,svg,ico,webmanifest}',
+      ],
+      globIgnores: [
+        'scrabble/**',  // the scrabble solver has its own assets, not worth precaching here
+      ],
+    },
+    devOptions: {
+      enabled: false,  // dev has HMR + own SW lifecycle — keep off to avoid confusion
+    },
+    // The manifest is served by our Nitro route (see server/api/todos/manifest.webmanifest.get.ts);
+    // vite-pwa's bundled manifest is not used.
+    manifest: false,
+  },
   routeRules: {
     '/**': {
       headers: {
