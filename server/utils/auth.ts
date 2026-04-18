@@ -103,9 +103,18 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
             sql: 'UPDATE sessions SET expires_at = ? WHERE id = ?',
             args: [newExpires, sessionId],
           })
-          // Re-set the cookie so the browser picks up the new max-age
+          // Re-set both cookies so the browser picks up the new max-age.
+          // Re-use the existing CSRF token so in-flight requests aren't broken.
           setCookie(event, SESSION_COOKIE, sessionId, {
             httpOnly: true,
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: SESSION_TTL_SECONDS,
+          })
+          const currentCsrf = getCookie(event, CSRF_COOKIE) ?? generateCsrfToken()
+          setCookie(event, CSRF_COOKIE, currentCsrf, {
+            httpOnly: false,
             secure: true,
             sameSite: 'lax',
             path: '/',
@@ -138,5 +147,5 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
 export function requireAuth(event: H3Event): AuthContext {
   const ctx = event.context.auth
   if (!ctx) throwApiError('auth_required', 'Authentication required')
-  return ctx!
+  return ctx
 }

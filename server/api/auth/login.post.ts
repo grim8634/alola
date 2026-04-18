@@ -6,6 +6,10 @@ import { throwApiError, requireField } from '../../utils/errors'
 import { rateLimit } from '../../utils/rateLimit'
 import { RATE_LIMITS } from '../../utils/constants'
 
+// Bogus but real-format bcrypt hash used when the email doesn't exist, so
+// compare time matches the real-user path. Computed at module load once.
+const UNREACHABLE_HASH = bcrypt.hashSync('\0', 12)
+
 interface LoginBody {
   email?: string
   password?: string
@@ -28,8 +32,9 @@ export default defineEventHandler(async (event) => {
     args: [email],
   })
 
-  // Compare a hash even if the user doesn't exist, so timing doesn't leak existence.
-  const hash = (rows[0]?.password_hash as string) ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv'
+  // Compare against a real-format hash even if the user doesn't exist, so
+  // timing doesn't leak whether an email is registered.
+  const hash = (rows[0]?.password_hash as string) ?? UNREACHABLE_HASH
   const ok = await bcrypt.compare(password, hash)
   if (!ok || rows.length === 0) {
     throwApiError('auth_required', 'Invalid email or password')

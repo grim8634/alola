@@ -781,9 +781,18 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
             sql: 'UPDATE sessions SET expires_at = ? WHERE id = ?',
             args: [newExpires, sessionId],
           })
-          // Re-set the cookie so the browser picks up the new max-age
+          // Re-set both cookies so the browser picks up the new max-age.
+          // Re-use the existing CSRF token so in-flight requests aren't broken.
           setCookie(event, SESSION_COOKIE, sessionId, {
             httpOnly: true,
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: SESSION_TTL_SECONDS,
+          })
+          const currentCsrf = getCookie(event, CSRF_COOKIE) ?? generateCsrfToken()
+          setCookie(event, CSRF_COOKIE, currentCsrf, {
+            httpOnly: false,
             secure: true,
             sameSite: 'lax',
             path: '/',
@@ -851,7 +860,7 @@ Then append at the end:
 export function requireAuth(event: H3Event): AuthContext {
   const ctx = event.context.auth
   if (!ctx) throwApiError('auth_required', 'Authentication required')
-  return ctx!
+  return ctx
 }
 ```
 
@@ -881,6 +890,10 @@ import { throwApiError, requireField } from '../../utils/errors'
 import { rateLimit } from '../../utils/rateLimit'
 import { RATE_LIMITS } from '../../utils/constants'
 
+// Bogus but real-format bcrypt hash used when the email doesn't exist, so
+// compare time matches the real-user path. Computed at module load once.
+const UNREACHABLE_HASH = bcrypt.hashSync('\0', 12)
+
 interface LoginBody {
   email?: string
   password?: string
@@ -903,8 +916,9 @@ export default defineEventHandler(async (event) => {
     args: [email],
   })
 
-  // Compare a hash even if the user doesn't exist, so timing doesn't leak existence.
-  const hash = (rows[0]?.password_hash as string) ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv'
+  // Compare against a real-format hash even if the user doesn't exist, so
+  // timing doesn't leak whether an email is registered.
+  const hash = (rows[0]?.password_hash as string) ?? UNREACHABLE_HASH
   const ok = await bcrypt.compare(password, hash)
   if (!ok || rows.length === 0) {
     throwApiError('auth_required', 'Invalid email or password')
@@ -940,7 +954,8 @@ git commit -m "feat(todos): add POST /api/auth/login"
 // server/api/auth/me.get.ts
 import { defineEventHandler } from 'h3'
 import { db } from '../../utils/db'
-import { requireAuth } from '../../utils/auth'
+import { requireAuth, endSession } from '../../utils/auth'
+import { throwApiError } from '../../utils/errors'
 
 export default defineEventHandler(async (event) => {
   const { userId } = requireAuth(event)
@@ -949,11 +964,8 @@ export default defineEventHandler(async (event) => {
     args: [userId],
   })
   if (rows.length === 0) {
-    // Session points to a missing user — nuke the session on the client side
-    // by clearing cookies and 401'ing.
-    const { endSession } = await import('../../utils/auth')
+    // Session points to a missing user — clear the cookies and 401.
     await endSession(event)
-    const { throwApiError } = await import('../../utils/errors')
     throwApiError('auth_required', 'User not found')
   }
   return {
