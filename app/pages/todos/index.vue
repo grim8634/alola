@@ -39,10 +39,11 @@ function openSheet(draft = '') {
 
 // Initial load.
 onMounted(async () => {
-  await Promise.all([
-    categoriesStore.refresh(),
-    tasksStore.refresh('all'),  // server returns full "visible" set; client filters from there
-  ])
+  // IDB hydrate already happened in app/plugins/pwa.client.ts. Refresh in background
+  // without blocking first paint; if offline, these reject silently and we keep
+  // showing cached data.
+  void categoriesStore.refresh()
+  void tasksStore.refresh('all')
   // PWA manifest shortcut: ?new=1 opens the expanded sheet.
   if (route.query.new === '1') {
     sheetOpen.value = true
