@@ -57,5 +57,20 @@ export function useCurrentView() {
     },
   })
 
-  return { view, categoryId, selectedTaskId }
+  /**
+   * Atomic view + category update. Use this when a single user action changes
+   * both at once (e.g. clicking "All" should clear category AND switch view).
+   * Calling the two setters sequentially races: each calls router.replace and
+   * the second read of route.query is stale, so the first update can be lost.
+   */
+  function setFilter(nextView: View, nextCategoryId: number | null) {
+    const q = { ...route.query }
+    if (nextView === 'today') delete q.view
+    else q.view = nextView
+    if (nextCategoryId === null) delete q.category
+    else q.category = String(nextCategoryId)
+    router.replace({ query: q })
+  }
+
+  return { view, categoryId, selectedTaskId, setFilter }
 }

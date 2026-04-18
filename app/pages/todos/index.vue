@@ -25,7 +25,7 @@ const router = useRouter()
 const { user, logout } = useSession()
 const categoriesStore = useCategories()
 const tasksStore = useTasks()
-const { view, categoryId, selectedTaskId } = useCurrentView()
+const { view, categoryId, selectedTaskId, setFilter } = useCurrentView()
 const snack = useUndoSnackbar()
 
 const sheetOpen = ref(false)
@@ -201,8 +201,7 @@ const viewTitle = computed(() => {
       :view="view"
       :category-id="categoryId"
       :counts="counts"
-      @update:view="(v) => (view = v)"
-      @update:categoryId="(id) => (categoryId = id)"
+      @select="setFilter"
     />
 
     <!-- Main column: list + optional desktop detail -->
@@ -230,7 +229,7 @@ const viewTitle = computed(() => {
         </header>
 
         <QuickAdd ref="quickAdd" @submit="onQuickSubmit" @expand="openSheet" />
-        <FilterChips :view="view" :category-id="categoryId" @update:view="(v) => (view = v)" @update:categoryId="(id) => (categoryId = id)" />
+        <FilterChips :view="view" :category-id="categoryId" @select="setFilter" />
 
         <div class="flex-1 overflow-y-auto px-1 pb-20">
           <TaskList
