@@ -25,3 +25,9 @@ logs
 .env
 .env.*
 !.env.example
+
+# Local databases
+local.db
+local.db-journal
+*.db-shm
+*.db-wal

@@ -106,23 +106,23 @@ cp .env.example .env
 
 - [ ] **Step 3: Update `.gitignore`**
 
+The repo's existing `.gitignore` already covers `.env` (explicit line) and `.env.local` (via `.env.*`). Only add the local-database patterns here.
+
 Append to `.gitignore`:
 
 ```
-# Env & local DBs
-.env
-.env.local
+# Local databases
 local.db
 local.db-journal
 *.db-shm
 *.db-wal
 ```
 
-Verify `.env` is ignored:
+Verify `.env` is still ignored (should point at the pre-existing rule):
 
 ```bash
 git check-ignore -v .env
-# Expected: .gitignore:<N>:.env  .env
+# Expected: .gitignore:<N>:.env  .env   (N is the PRE-EXISTING line, not a new one)
 ```
 
 - [ ] **Step 4: Install runtime dependencies**
@@ -690,6 +690,12 @@ import {
   BEARER_PREFIX,
 } from './constants'
 import { generateCsrfToken } from './csrf'
+import { throwApiError } from './errors'
+
+// `Secure` cookies are rejected on plain http in some browsers (including
+// Safari on localhost, and some WSL2 + Windows-side browser combos). Gate the
+// flag on production so local dev over http://localhost works without friction.
+const IS_PROD = process.env.NODE_ENV === 'production'
 
 export interface AuthContext {
   userId: number
@@ -720,14 +726,14 @@ export async function startSession(event: H3Event, userId: number): Promise<stri
 
   setCookie(event, SESSION_COOKIE, id, {
     httpOnly: true,
-    secure: true,
+    secure: IS_PROD,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_TTL_SECONDS,
   })
   setCookie(event, CSRF_COOKIE, generateCsrfToken(), {
     httpOnly: false,
-    secure: true,
+    secure: IS_PROD,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_TTL_SECONDS,
@@ -781,10 +787,19 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
             sql: 'UPDATE sessions SET expires_at = ? WHERE id = ?',
             args: [newExpires, sessionId],
           })
-          // Re-set the cookie so the browser picks up the new max-age
+          // Re-set both cookies so the browser picks up the new max-age.
+          // Re-use the existing CSRF token so in-flight requests aren't broken.
           setCookie(event, SESSION_COOKIE, sessionId, {
             httpOnly: true,
-            secure: true,
+            secure: IS_PROD,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: SESSION_TTL_SECONDS,
+          })
+          const currentCsrf = getCookie(event, CSRF_COOKIE) ?? generateCsrfToken()
+          setCookie(event, CSRF_COOKIE, currentCsrf, {
+            httpOnly: false,
+            secure: IS_PROD,
             sameSite: 'lax',
             path: '/',
             maxAge: SESSION_TTL_SECONDS,
@@ -838,20 +853,14 @@ export default defineEventHandler(async (event) => {
 
 - [ ] **Step 3: Add a `requireAuth()` helper at the bottom of `server/utils/auth.ts`**
 
-Add a static import at the top of `server/utils/auth.ts`:
-
-```ts
-import { throwApiError } from './errors'
-```
-
-Then append at the end:
+`throwApiError` is already imported at the top of `auth.ts` (from Step 1). Append at the end of the file:
 
 ```ts
 /** Throws auth_required if the event has no resolved auth context. */
 export function requireAuth(event: H3Event): AuthContext {
   const ctx = event.context.auth
   if (!ctx) throwApiError('auth_required', 'Authentication required')
-  return ctx!
+  return ctx
 }
 ```
 
@@ -881,6 +890,10 @@ import { throwApiError, requireField } from '../../utils/errors'
 import { rateLimit } from '../../utils/rateLimit'
 import { RATE_LIMITS } from '../../utils/constants'
 
+// Bogus but real-format bcrypt hash used when the email doesn't exist, so
+// compare time matches the real-user path. Computed at module load once.
+const UNREACHABLE_HASH = bcrypt.hashSync('\0', 12)
+
 interface LoginBody {
   email?: string
   password?: string
@@ -903,8 +916,9 @@ export default defineEventHandler(async (event) => {
     args: [email],
   })
 
-  // Compare a hash even if the user doesn't exist, so timing doesn't leak existence.
-  const hash = (rows[0]?.password_hash as string) ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv'
+  // Compare against a real-format hash even if the user doesn't exist, so
+  // timing doesn't leak whether an email is registered.
+  const hash = (rows[0]?.password_hash as string) ?? UNREACHABLE_HASH
   const ok = await bcrypt.compare(password, hash)
   if (!ok || rows.length === 0) {
     throwApiError('auth_required', 'Invalid email or password')
@@ -940,7 +954,8 @@ git commit -m "feat(todos): add POST /api/auth/login"
 // server/api/auth/me.get.ts
 import { defineEventHandler } from 'h3'
 import { db } from '../../utils/db'
-import { requireAuth } from '../../utils/auth'
+import { requireAuth, endSession } from '../../utils/auth'
+import { throwApiError } from '../../utils/errors'
 
 export default defineEventHandler(async (event) => {
   const { userId } = requireAuth(event)
@@ -949,11 +964,8 @@ export default defineEventHandler(async (event) => {
     args: [userId],
   })
   if (rows.length === 0) {
-    // Session points to a missing user — nuke the session on the client side
-    // by clearing cookies and 401'ing.
-    const { endSession } = await import('../../utils/auth')
+    // Session points to a missing user — clear the cookies and 401.
     await endSession(event)
-    const { throwApiError } = await import('../../utils/errors')
     throwApiError('auth_required', 'User not found')
   }
   return {
@@ -1071,7 +1083,9 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel',
   },
-  // Security headers applied broadly; tighter CSP scoped to todos + api.
+  // Security headers. CSP is intentionally NOT set here — Nuxt's hydration
+  // relies on inline scripts, so a strict CSP needs nonce-based integration
+  // (e.g. @nuxtjs/security). Adding that correctly is tracked for Plan 3.
   routeRules: {
     '/**': {
       headers: {
@@ -1083,15 +1097,6 @@ export default defineNuxtConfig({
     '/todos/**': {
       headers: {
         'X-Frame-Options': 'DENY',
-        'Content-Security-Policy':
-          "default-src 'self'; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data:; " +
-          "script-src 'self'; " +
-          "connect-src 'self'; " +
-          "manifest-src 'self'; " +
-          "worker-src 'self';",
       },
     },
     '/api/**': {
@@ -1113,7 +1118,8 @@ export default defineNuxtConfig({
 Notes:
 - Preset change: `cloudflare-pages-static` → `vercel`.
 - Added Inter to the Google Fonts URL (app UI uses Inter; public site still uses Syne + Lora).
-- `routeRules` sets universal HSTS + nosniff, tighter CSP and X-Frame-Options on the app.
+- `routeRules` sets universal HSTS + nosniff + Referrer-Policy, and X-Frame-Options on `/todos/**` and `/api/**`.
+- **CSP is deliberately omitted.** A strict CSP breaks Nuxt SSR hydration (inline state scripts) and Vite HMR (blob workers). Proper nonce-based CSP integration is scheduled for Plan 3 via `@nuxtjs/security` or equivalent.
 
 - [ ] **Step 3: Restart `npm run dev` and verify headers**
 
@@ -1122,7 +1128,7 @@ curl -i http://localhost:3000/ | head -20
 # Expected: Strict-Transport-Security present
 
 curl -i http://localhost:3000/todos | head -20
-# Expected: X-Frame-Options: DENY + Content-Security-Policy present
+# Expected: X-Frame-Options: DENY present
 # (Will 404 for the page itself until Task 14; headers still apply)
 ```
 
@@ -1544,8 +1550,8 @@ done
 - [ ] **Step 10: Test non-https security headers apply**
 
 ```bash
-curl -sI http://localhost:3000/todos/login | grep -iE '(content-security|x-frame|strict-transport)'
-# Expected: all three headers present
+curl -sI http://localhost:3000/todos/login | grep -iE '(x-frame|strict-transport|x-content-type|referrer)'
+# Expected: X-Frame-Options, Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy all present
 ```
 
 If all ten checks pass, Plan 1's local happy-path is green. Commit any fix-ups from this task as discovered.
