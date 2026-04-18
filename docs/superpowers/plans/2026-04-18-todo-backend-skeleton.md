@@ -106,23 +106,23 @@ cp .env.example .env
 
 - [ ] **Step 3: Update `.gitignore`**
 
+The repo's existing `.gitignore` already covers `.env` (explicit line) and `.env.local` (via `.env.*`). Only add the local-database patterns here.
+
 Append to `.gitignore`:
 
 ```
-# Env & local DBs
-.env
-.env.local
+# Local databases
 local.db
 local.db-journal
 *.db-shm
 *.db-wal
 ```
 
-Verify `.env` is ignored:
+Verify `.env` is still ignored (should point at the pre-existing rule):
 
 ```bash
 git check-ignore -v .env
-# Expected: .gitignore:<N>:.env  .env
+# Expected: .gitignore:<N>:.env  .env   (N is the PRE-EXISTING line, not a new one)
 ```
 
 - [ ] **Step 4: Install runtime dependencies**
