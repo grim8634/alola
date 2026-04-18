@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: true },
   modules: [
+    'nuxt-security',
     '@vite-pwa/nuxt',
   ],
   css: ['~/assets/sass/main.scss'],
@@ -37,6 +38,36 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel',
   },
+  security: {
+    headers: {
+      contentSecurityPolicy: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", "'nonce-{{nonce}}'", "'strict-dynamic'"],
+        'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        'font-src': ["'self'", 'https://fonts.gstatic.com'],
+        'img-src': ["'self'", 'data:'],
+        'connect-src': ["'self'"],
+        'manifest-src': ["'self'"],
+        'worker-src': ["'self'", 'blob:'],
+        'frame-ancestors': ["'none'"],
+        'base-uri': ["'self'"],
+      },
+      xFrameOptions: 'DENY',
+      strictTransportSecurity: {
+        maxAge: 63072000,
+        includeSubdomains: true,
+      },
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      xContentTypeOptions: 'nosniff',
+      crossOriginResourcePolicy: 'same-origin',
+      crossOriginOpenerPolicy: 'same-origin',
+    },
+    nonce: true,
+    rateLimiter: false,
+    requestSizeLimiter: false,
+    xssValidator: false,
+    corsHandler: false,
+  },
   pwa: {
     registerType: 'autoUpdate',
     // InjectManifest: we own the service worker source; Workbox only injects precache.
@@ -62,21 +93,8 @@ export default defineNuxtConfig({
     manifest: false,
   },
   routeRules: {
-    '/**': {
-      headers: {
-        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-      },
-    },
-    '/todos/**': {
-      headers: {
-        'X-Frame-Options': 'DENY',
-      },
-    },
     '/api/**': {
       headers: {
-        'X-Frame-Options': 'DENY',
         'Cache-Control': 'no-store',
       },
     },
