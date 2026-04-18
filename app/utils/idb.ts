@@ -67,16 +67,26 @@ export async function idbPutMeta(key: string, value: unknown): Promise<void> {
   await (await db()).put('meta', { key, value })
 }
 
+/**
+ * Strip Vue reactive Proxies (and any other non-cloneable wrappers) before
+ * writing to IDB. IndexedDB uses the structured-clone algorithm which fails on
+ * Proxy objects with `DataCloneError: [object Array] could not be cloned`.
+ * JSON round-trip is crude but reliable for our plain-data task/category shapes.
+ */
+function plain<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v))
+}
+
 export async function idbPutTasks(tasks: Task[]): Promise<void> {
   const d = await db()
   const tx = d.transaction('tasks', 'readwrite')
   await tx.objectStore('tasks').clear()
-  for (const t of tasks) await tx.objectStore('tasks').put(t)
+  for (const t of tasks) await tx.objectStore('tasks').put(plain(t))
   await tx.done
 }
 
 export async function idbUpsertTask(task: Task): Promise<void> {
-  await (await db()).put('tasks', task)
+  await (await db()).put('tasks', plain(task))
 }
 
 export async function idbDeleteTask(id: number): Promise<void> {
@@ -87,12 +97,12 @@ export async function idbPutCategories(categories: Category[]): Promise<void> {
   const d = await db()
   const tx = d.transaction('categories', 'readwrite')
   await tx.objectStore('categories').clear()
-  for (const c of categories) await tx.objectStore('categories').put(c)
+  for (const c of categories) await tx.objectStore('categories').put(plain(c))
   await tx.done
 }
 
 export async function idbUpsertCategory(category: Category): Promise<void> {
-  await (await db()).put('categories', category)
+  await (await db()).put('categories', plain(category))
 }
 
 export async function idbDeleteCategory(id: number): Promise<void> {
@@ -102,7 +112,7 @@ export async function idbDeleteCategory(id: number): Promise<void> {
 /** Append a mutation to the queue; returns its assigned id. */
 export async function idbPushMutation(m: Omit<PendingMutation, 'id'>): Promise<number> {
   const d = await db()
-  return Number(await d.add('pending_mutations', m))
+  return Number(await d.add('pending_mutations', plain(m)))
 }
 
 export async function idbListMutations(): Promise<PendingMutation[]> {
@@ -111,7 +121,7 @@ export async function idbListMutations(): Promise<PendingMutation[]> {
 
 export async function idbUpdateMutation(m: PendingMutation): Promise<void> {
   if (m.id === undefined) throw new Error('cannot update mutation without id')
-  await (await db()).put('pending_mutations', m)
+  await (await db()).put('pending_mutations', plain(m))
 }
 
 export async function idbRemoveMutation(id: number): Promise<void> {
