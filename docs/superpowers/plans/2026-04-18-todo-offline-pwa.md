@@ -31,7 +31,7 @@
 - `app/components/Todo/SyncIndicator.vue`
 - `app/components/Todo/OfflineBanner.vue`
 - `app/components/Todo/InstallHint.vue` — Android deferred prompt + iOS "Add to Home Screen" hint
-- `public/service-worker.ts` — Workbox source (consumed by `@vite-pwa/nuxt` in `injectManifest` mode)
+- `app/service-worker/sw.ts` — Workbox source (consumed by `@vite-pwa/nuxt` in `injectManifest` mode)
 
 **Modify:**
 - `nuxt.config.ts` — add `@vite-pwa/nuxt` and `nuxt-security` modules; link the PWA manifest from the `app/layouts/app.vue` head (not the public site layout)
@@ -1454,7 +1454,7 @@ git commit -m "feat(todos): InstallHint for Android (deferred) + iOS (Add to Hom
 
 **Files:**
 - Modify: `nuxt.config.ts`
-- Create: `public/service-worker.ts`
+- Create: `app/service-worker/sw.ts`
 
 Use the module's `injectManifest` strategy so we own the SW source; Workbox's build step injects `self.__WB_MANIFEST` (the precache list).
 
@@ -1506,7 +1506,7 @@ export default defineNuxtConfig({
     registerType: 'autoUpdate',
     // InjectManifest: we own the service worker source; Workbox only injects precache.
     strategies: 'injectManifest',
-    srcDir: 'public',
+    srcDir: 'service-worker',
     filename: 'service-worker.ts',
     scope: '/todos/',
     // Generate sw only for /todos/ scope; the public site doesn't need a SW.
@@ -1555,10 +1555,10 @@ export default defineNuxtConfig({
 })
 ```
 
-- [ ] **Step 2: Write `public/service-worker.ts`**
+- [ ] **Step 2: Write `app/service-worker/sw.ts`**
 
 ```ts
-// public/service-worker.ts — custom SW. Workbox injects __WB_MANIFEST at build time.
+// app/service-worker/sw.ts — custom SW. Workbox injects __WB_MANIFEST at build time.
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies'
@@ -1619,7 +1619,7 @@ Expected: Types generated. If the module throws on boot, the error will surface 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add nuxt.config.ts public/service-worker.ts
+git add nuxt.config.ts app/service-worker/sw.ts
 git commit -m "feat(todos): service worker via @vite-pwa/nuxt injectManifest"
 ```
 
@@ -1630,7 +1630,7 @@ git commit -m "feat(todos): service worker via @vite-pwa/nuxt injectManifest"
 **Files:**
 - Modify: `package.json`
 
-`workbox-precaching`, `workbox-routing`, `workbox-strategies`, and `workbox-expiration` are used directly by `public/service-worker.ts`. They are pulled in transitively by `@vite-pwa/nuxt`, but some bundler configurations lose them — explicit install guarantees resolution.
+`workbox-precaching`, `workbox-routing`, `workbox-strategies`, and `workbox-expiration` are used directly by `app/service-worker/sw.ts`. They are pulled in transitively by `@vite-pwa/nuxt`, but some bundler configurations lose them — explicit install guarantees resolution.
 
 - [ ] **Step 1: Install**
 

@@ -72,8 +72,8 @@ export default defineNuxtConfig({
     registerType: 'autoUpdate',
     // InjectManifest: we own the service worker source; Workbox only injects precache.
     strategies: 'injectManifest',
-    srcDir: 'public',
-    filename: 'service-worker.ts',
+    srcDir: 'service-worker',
+    filename: 'sw.ts',
     scope: '/todos/',
     // Generate sw only for /todos/ scope; the public site doesn't need a SW.
     workbox: undefined,
