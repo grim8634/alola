@@ -12,8 +12,8 @@ export default defineEventHandler(async (event) => {
   if (authMethod === 'cookie') verifyCsrf(event)
   rateLimit(`writes:${userId}`, RATE_LIMITS.writes)
 
-  const taskId = Number(getRouterParam(event, 'taskId'))
-  if (!Number.isFinite(taskId)) throwApiError('validation_failed', 'taskId must be a number')
+  const taskId = Number(getRouterParam(event, 'id'))
+  if (!Number.isFinite(taskId)) throwApiError('validation_failed', 'id must be a number')
 
   const { rows: owner } = await db().execute({
     sql: 'SELECT id FROM tasks WHERE id = ? AND user_id = ?',
