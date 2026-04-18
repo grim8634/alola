@@ -690,6 +690,12 @@ import {
   BEARER_PREFIX,
 } from './constants'
 import { generateCsrfToken } from './csrf'
+import { throwApiError } from './errors'
+
+// `Secure` cookies are rejected on plain http in some browsers (including
+// Safari on localhost, and some WSL2 + Windows-side browser combos). Gate the
+// flag on production so local dev over http://localhost works without friction.
+const IS_PROD = process.env.NODE_ENV === 'production'
 
 export interface AuthContext {
   userId: number
@@ -720,14 +726,14 @@ export async function startSession(event: H3Event, userId: number): Promise<stri
 
   setCookie(event, SESSION_COOKIE, id, {
     httpOnly: true,
-    secure: true,
+    secure: IS_PROD,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_TTL_SECONDS,
   })
   setCookie(event, CSRF_COOKIE, generateCsrfToken(), {
     httpOnly: false,
-    secure: true,
+    secure: IS_PROD,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_TTL_SECONDS,
@@ -785,7 +791,7 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
           // Re-use the existing CSRF token so in-flight requests aren't broken.
           setCookie(event, SESSION_COOKIE, sessionId, {
             httpOnly: true,
-            secure: true,
+            secure: IS_PROD,
             sameSite: 'lax',
             path: '/',
             maxAge: SESSION_TTL_SECONDS,
@@ -793,7 +799,7 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
           const currentCsrf = getCookie(event, CSRF_COOKIE) ?? generateCsrfToken()
           setCookie(event, CSRF_COOKIE, currentCsrf, {
             httpOnly: false,
-            secure: true,
+            secure: IS_PROD,
             sameSite: 'lax',
             path: '/',
             maxAge: SESSION_TTL_SECONDS,
@@ -847,13 +853,7 @@ export default defineEventHandler(async (event) => {
 
 - [ ] **Step 3: Add a `requireAuth()` helper at the bottom of `server/utils/auth.ts`**
 
-Add a static import at the top of `server/utils/auth.ts`:
-
-```ts
-import { throwApiError } from './errors'
-```
-
-Then append at the end:
+`throwApiError` is already imported at the top of `auth.ts` (from Step 1). Append at the end of the file:
 
 ```ts
 /** Throws auth_required if the event has no resolved auth context. */
