@@ -22,24 +22,47 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
         { rel: 'manifest', href: '/site.webmanifest' },
-        {
-          rel: 'preconnect',
-          href: 'https://fonts.googleapis.com',
-        },
-        {
-          rel: 'preconnect',
-          href: 'https://fonts.gstatic.com',
-          crossorigin: '',
-        },
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;1,400&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700&display=swap',
         },
       ],
     },
   },
   nitro: {
-    preset: 'cloudflare-pages-static',
+    preset: 'vercel',
+  },
+  // Security headers applied broadly; tighter CSP scoped to todos + api.
+  routeRules: {
+    '/**': {
+      headers: {
+        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+      },
+    },
+    '/todos/**': {
+      headers: {
+        'X-Frame-Options': 'DENY',
+        'Content-Security-Policy':
+          "default-src 'self'; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com; " +
+          "img-src 'self' data:; " +
+          "script-src 'self'; " +
+          "connect-src 'self'; " +
+          "manifest-src 'self'; " +
+          "worker-src 'self';",
+      },
+    },
+    '/api/**': {
+      headers: {
+        'X-Frame-Options': 'DENY',
+        'Cache-Control': 'no-store',
+      },
+    },
   },
   postcss: {
     plugins: {
