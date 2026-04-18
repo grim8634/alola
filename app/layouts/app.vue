@@ -1,3 +1,16 @@
+<script setup lang="ts">
+useHead({
+  link: [
+    { rel: 'manifest', href: '/api/todos/manifest.webmanifest' },
+  ],
+  meta: [
+    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+    { name: 'apple-mobile-web-app-title', content: 'todos' },
+  ],
+})
+</script>
+
 <template>
   <div class="min-h-screen bg-surface text-ink" style="font-family: 'Inter', system-ui, sans-serif;">
     <div class="grain-light" />

@@ -4,6 +4,10 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
   devtools: { enabled: true },
+  modules: [
+    'nuxt-security',
+    '@vite-pwa/nuxt',
+  ],
   css: ['~/assets/sass/main.scss'],
   app: {
     pageTransition: { name: 'page', mode: 'out-in' },
@@ -34,25 +38,63 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel',
   },
-  // Security headers. CSP is intentionally NOT set here — Nuxt's hydration
-  // relies on inline scripts, so a strict CSP needs nonce-based integration
-  // (e.g. @nuxtjs/security). Adding that correctly is tracked for Plan 3.
+  security: {
+    headers: {
+      contentSecurityPolicy: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", "'nonce-{{nonce}}'", "'strict-dynamic'"],
+        'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        'font-src': ["'self'", 'https://fonts.gstatic.com'],
+        'img-src': ["'self'", 'data:'],
+        'connect-src': ["'self'"],
+        'manifest-src': ["'self'"],
+        'worker-src': ["'self'", 'blob:'],
+        'frame-ancestors': ["'none'"],
+        'base-uri': ["'self'"],
+      },
+      xFrameOptions: 'DENY',
+      strictTransportSecurity: {
+        maxAge: 63072000,
+        includeSubdomains: true,
+      },
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      xContentTypeOptions: 'nosniff',
+      crossOriginResourcePolicy: 'same-origin',
+      crossOriginOpenerPolicy: 'same-origin',
+    },
+    nonce: true,
+    rateLimiter: false,
+    requestSizeLimiter: false,
+    xssValidator: false,
+    corsHandler: false,
+  },
+  pwa: {
+    registerType: 'autoUpdate',
+    // InjectManifest: we own the service worker source; Workbox only injects precache.
+    strategies: 'injectManifest',
+    srcDir: 'service-worker',
+    filename: 'sw.ts',
+    scope: '/todos/',
+    // Generate sw only for /todos/ scope; the public site doesn't need a SW.
+    workbox: undefined,
+    injectManifest: {
+      globPatterns: [
+        '**/*.{js,css,html,png,svg,ico,webmanifest}',
+      ],
+      globIgnores: [
+        'scrabble/**',  // the scrabble solver has its own assets, not worth precaching here
+      ],
+    },
+    devOptions: {
+      enabled: false,  // dev has HMR + own SW lifecycle — keep off to avoid confusion
+    },
+    // The manifest is served by our Nitro route (see server/api/todos/manifest.webmanifest.get.ts);
+    // vite-pwa's bundled manifest is not used.
+    manifest: false,
+  },
   routeRules: {
-    '/**': {
-      headers: {
-        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-      },
-    },
-    '/todos/**': {
-      headers: {
-        'X-Frame-Options': 'DENY',
-      },
-    },
     '/api/**': {
       headers: {
-        'X-Frame-Options': 'DENY',
         'Cache-Control': 'no-store',
       },
     },

@@ -4,9 +4,9 @@
 
 **Goal:** Make `/todos` installable as a home-screen PWA on iOS and Android, viewable offline (with an IndexedDB snapshot), and capture-capable offline (mutations queue in IndexedDB and flush when connectivity returns). Close the loop with a proper nonce-based Content-Security-Policy.
 
-**Architecture:** `@vite-pwa/nuxt` in `injectManifest` mode owns the service worker (app-shell precache + GET stale-while-revalidate for the task/category endpoints). The mutation queue lives in the **main thread** (per spec), using `idb` for storage; mutations write through the in-memory store, enqueue to IndexedDB, then attempt the network. Flush triggers: `online` event, tab-visibility becoming visible, manual tap. Last-write-wins by `updated_at`; idempotent creates via `client_id` (server already enforces this from Plan 1). A `SyncIndicator` surfaces queue state (green / amber / red). CSP nonces are reintroduced via `@nuxtjs/security` so Nuxt's SSR hydration still works.
+**Architecture:** `@vite-pwa/nuxt` in `injectManifest` mode owns the service worker (app-shell precache + GET stale-while-revalidate for the task/category endpoints). The mutation queue lives in the **main thread** (per spec), using `idb` for storage; mutations write through the in-memory store, enqueue to IndexedDB, then attempt the network. Flush triggers: `online` event, tab-visibility becoming visible, manual tap. Last-write-wins by `updated_at`; idempotent creates via `client_id` (server already enforces this from Plan 1). A `SyncIndicator` surfaces queue state (green / amber / red). CSP nonces are reintroduced via `nuxt-security` so Nuxt's SSR hydration still works.
 
-**Tech Stack:** Nuxt 4, `@vite-pwa/nuxt` (injectManifest), `workbox-window`, `idb`, `@nuxtjs/security`, Vercel Node runtime.
+**Tech Stack:** Nuxt 4, `@vite-pwa/nuxt` (injectManifest), `workbox-window`, `idb`, `nuxt-security`, Vercel Node runtime.
 
 **Spec:** `docs/superpowers/specs/2026-04-18-todo-app-design.md`
 
@@ -31,10 +31,10 @@
 - `app/components/Todo/SyncIndicator.vue`
 - `app/components/Todo/OfflineBanner.vue`
 - `app/components/Todo/InstallHint.vue` — Android deferred prompt + iOS "Add to Home Screen" hint
-- `public/service-worker.ts` — Workbox source (consumed by `@vite-pwa/nuxt` in `injectManifest` mode)
+- `app/service-worker/sw.ts` — Workbox source (consumed by `@vite-pwa/nuxt` in `injectManifest` mode)
 
 **Modify:**
-- `nuxt.config.ts` — add `@vite-pwa/nuxt` and `@nuxtjs/security` modules; link the PWA manifest from the `app/layouts/app.vue` head (not the public site layout)
+- `nuxt.config.ts` — add `@vite-pwa/nuxt` and `nuxt-security` modules; link the PWA manifest from the `app/layouts/app.vue` head (not the public site layout)
 - `app/composables/useCategories.ts` — hydrate from IDB on boot, persist on refresh, enqueue mutations
 - `app/composables/useTasks.ts` — same pattern for tasks + subtasks
 - `app/pages/todos/index.vue` — wire `SyncIndicator`, `OfflineBanner`, `InstallHint`
@@ -78,10 +78,10 @@ cp .env.example .env
 ```bash
 cd ~/.config/superpowers/worktrees/alola/todos-offline-pwa
 npm install idb
-npm install --save-dev @vite-pwa/nuxt workbox-window @nuxtjs/security
+npm install --save-dev @vite-pwa/nuxt workbox-window nuxt-security
 ```
 
-`idb` is the runtime typed IndexedDB wrapper. `@vite-pwa/nuxt` and `workbox-window` handle the service-worker build + registration. `@nuxtjs/security` reintroduces CSP with nonces.
+`idb` is the runtime typed IndexedDB wrapper. `@vite-pwa/nuxt` and `workbox-window` handle the service-worker build + registration. `nuxt-security` reintroduces CSP with nonces.
 
 - [ ] **Step 2: Commit**
 
@@ -1454,7 +1454,7 @@ git commit -m "feat(todos): InstallHint for Android (deferred) + iOS (Add to Hom
 
 **Files:**
 - Modify: `nuxt.config.ts`
-- Create: `public/service-worker.ts`
+- Create: `app/service-worker/sw.ts`
 
 Use the module's `injectManifest` strategy so we own the SW source; Workbox's build step injects `self.__WB_MANIFEST` (the precache list).
 
@@ -1506,7 +1506,7 @@ export default defineNuxtConfig({
     registerType: 'autoUpdate',
     // InjectManifest: we own the service worker source; Workbox only injects precache.
     strategies: 'injectManifest',
-    srcDir: 'public',
+    srcDir: 'service-worker',
     filename: 'service-worker.ts',
     scope: '/todos/',
     // Generate sw only for /todos/ scope; the public site doesn't need a SW.
@@ -1555,10 +1555,10 @@ export default defineNuxtConfig({
 })
 ```
 
-- [ ] **Step 2: Write `public/service-worker.ts`**
+- [ ] **Step 2: Write `app/service-worker/sw.ts`**
 
 ```ts
-// public/service-worker.ts — custom SW. Workbox injects __WB_MANIFEST at build time.
+// app/service-worker/sw.ts — custom SW. Workbox injects __WB_MANIFEST at build time.
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies'
@@ -1619,7 +1619,7 @@ Expected: Types generated. If the module throws on boot, the error will surface 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add nuxt.config.ts public/service-worker.ts
+git add nuxt.config.ts app/service-worker/sw.ts
 git commit -m "feat(todos): service worker via @vite-pwa/nuxt injectManifest"
 ```
 
@@ -1630,7 +1630,7 @@ git commit -m "feat(todos): service worker via @vite-pwa/nuxt injectManifest"
 **Files:**
 - Modify: `package.json`
 
-`workbox-precaching`, `workbox-routing`, `workbox-strategies`, and `workbox-expiration` are used directly by `public/service-worker.ts`. They are pulled in transitively by `@vite-pwa/nuxt`, but some bundler configurations lose them — explicit install guarantees resolution.
+`workbox-precaching`, `workbox-routing`, `workbox-strategies`, and `workbox-expiration` are used directly by `app/service-worker/sw.ts`. They are pulled in transitively by `@vite-pwa/nuxt`, but some bundler configurations lose them — explicit install guarantees resolution.
 
 - [ ] **Step 1: Install**
 
@@ -1648,20 +1648,20 @@ git commit -m "chore(todos): explicit workbox-* devDeps for SW build"
 
 ---
 
-### Task 15: Reintroduce CSP via `@nuxtjs/security` (with nonces)
+### Task 15: Reintroduce CSP via `nuxt-security` (with nonces)
 
 **Files:**
 - Modify: `nuxt.config.ts`
 
-We dropped the strict CSP in Plan 1 because it broke Nuxt SSR hydration (inline state scripts). `@nuxtjs/security` adds nonces to those inline scripts and configures CSP correctly.
+We dropped the strict CSP in Plan 1 because it broke Nuxt SSR hydration (inline state scripts). `nuxt-security` adds nonces to those inline scripts and configures CSP correctly.
 
 - [ ] **Step 1: Update `nuxt.config.ts`**
 
-Add `@nuxtjs/security` to the modules array and configure it. Replace the current `modules: [ '@vite-pwa/nuxt' ]` block with:
+Add `nuxt-security` to the modules array and configure it. Replace the current `modules: [ '@vite-pwa/nuxt' ]` block with:
 
 ```ts
   modules: [
-    '@nuxtjs/security',
+    'nuxt-security',
     '@vite-pwa/nuxt',
   ],
 ```
@@ -1731,7 +1731,7 @@ Expected: app mounts, login works, no CSP violations in the console.
 
 ```bash
 git add nuxt.config.ts
-git commit -m "feat(todos): nonce-based CSP via @nuxtjs/security"
+git commit -m "feat(todos): nonce-based CSP via nuxt-security"
 ```
 
 ---

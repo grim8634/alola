@@ -16,6 +16,10 @@ useHead({ title: 'Settings' })
         <span>Categories</span>
         <span class="text-ink-faint">›</span>
       </NuxtLink>
+      <NuxtLink to="/todos/settings/offline" class="flex items-center justify-between px-4 py-3 hover:bg-surface-raised">
+        <span>Offline & sync</span>
+        <span class="text-ink-faint">›</span>
+      </NuxtLink>
     </nav>
   </div>
 </template>
