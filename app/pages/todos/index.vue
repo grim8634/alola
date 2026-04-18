@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, definePageMeta } from '#imports'
 import { useSession } from '~/composables/useSession'
 import { useCategories } from '~/composables/useCategories'
-import { useTasks, type View } from '~/composables/useTasks'
+import { useTasks } from '~/composables/useTasks'
 import { useCurrentView } from '~/composables/useCurrentView'
 import { useUndoSnackbar } from '~/composables/useUndoSnackbar'
 import { startOfToday, startOfTomorrow, startOfNextWeek } from '~/utils/date'
