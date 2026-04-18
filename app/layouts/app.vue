@@ -20,3 +20,18 @@
   background-size: 200px;
 }
 </style>
+
+<!--
+  Unscoped: native <option> elements take their colours from the OS by default,
+  which breaks contrast on our dark theme. Force a legible palette everywhere.
+-->
+<style>
+select option {
+  background-color: #1e1c18;
+  color: #e8e2d6;
+}
+select option:checked,
+select option:hover {
+  background-color: #28251f;
+}
+</style>
