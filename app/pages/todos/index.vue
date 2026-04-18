@@ -118,7 +118,8 @@ async function onToggle(id: number) {
     if (t.completed_at === null) await tasksStore.complete(id)
     else await tasksStore.uncomplete(id)
   } catch (e: any) {
-    snack.show(e?.data?.error?.message ?? 'Failed to update task')
+    console.error('[todos] toggle failed', e)
+    snack.show(e?.data?.error?.message ?? e?.message ?? 'Failed to update task')
   }
 }
 
