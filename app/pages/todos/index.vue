@@ -15,6 +15,7 @@ import FilterChips from '~/components/Todo/FilterChips.vue'
 import TaskList from '~/components/Todo/TaskList.vue'
 import TaskDetail from '~/components/Todo/TaskDetail.vue'
 import Snackbar from '~/components/Todo/Snackbar.vue'
+import OfflineBanner from '~/components/Todo/OfflineBanner.vue'
 
 definePageMeta({ layout: 'app', middleware: ['auth'] })
 useHead({ title: 'Todos' })
@@ -229,6 +230,7 @@ const viewTitle = computed(() => {
           </button>
         </header>
 
+        <OfflineBanner />
         <QuickAdd ref="quickAdd" @submit="onQuickSubmit" @expand="openSheet" />
         <FilterChips :view="view" :category-id="categoryId" @select="setFilter" />
 
