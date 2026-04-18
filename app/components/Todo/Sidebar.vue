@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { View } from '~/composables/useTasks'
 import { useCategories } from '~/composables/useCategories'
+import SyncIndicator from '~/components/Todo/SyncIndicator.vue'
 
 defineProps<{
   view: View
@@ -66,6 +67,10 @@ function selectCategory(id: number) {
         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
         New category
       </NuxtLink>
+    </div>
+
+    <div class="mt-auto pt-3 border-t border-ink-faint/10 px-1">
+      <SyncIndicator />
     </div>
   </aside>
 </template>
