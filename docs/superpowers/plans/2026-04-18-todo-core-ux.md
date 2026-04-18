@@ -38,7 +38,7 @@ Server:
 - `server/api/tasks/[id].delete.ts`
 - `server/api/tasks/[id]/complete.post.ts`
 - `server/api/tasks/[id]/uncomplete.post.ts`
-- `server/api/tasks/[taskId]/subtasks.post.ts`
+- `server/api/tasks/[id]/subtasks.post.ts`
 - `server/api/subtasks/[id].patch.ts`
 - `server/api/subtasks/[id].delete.ts`
 - `server/api/subtasks/[id]/toggle.post.ts`
@@ -993,15 +993,17 @@ git commit -m "feat(todos): POST /api/tasks/:id/complete and /uncomplete"
 ### Task 8: Subtasks API — create, patch, delete, toggle
 
 **Files:**
-- Create: `server/api/tasks/[taskId]/subtasks.post.ts`
+- Create: `server/api/tasks/[id]/subtasks.post.ts`
 - Create: `server/api/subtasks/[id].patch.ts`
 - Create: `server/api/subtasks/[id].delete.ts`
 - Create: `server/api/subtasks/[id]/toggle.post.ts`
 
-- [ ] **Step 1: Write `server/api/tasks/[taskId]/subtasks.post.ts`**
+- [ ] **Step 1: Write `server/api/tasks/[id]/subtasks.post.ts`**
+
+Important: this MUST live under `[id]/` (not a separate `[taskId]/` directory). Nitro's file router does not support two different dynamic-param names as sibling directories at the same level — it silently drops one set of routes. All `server/api/tasks/[id]/*` handlers share a single param name (`id`).
 
 ```ts
-// server/api/tasks/[taskId]/subtasks.post.ts
+// server/api/tasks/[id]/subtasks.post.ts
 import { defineEventHandler, readBody, getRouterParam, setResponseStatus } from 'h3'
 import { db } from '../../../utils/db'
 import { requireAuth } from '../../../utils/auth'
@@ -1016,8 +1018,8 @@ export default defineEventHandler(async (event) => {
   if (authMethod === 'cookie') verifyCsrf(event)
   rateLimit(`writes:${userId}`, RATE_LIMITS.writes)
 
-  const taskId = Number(getRouterParam(event, 'taskId'))
-  if (!Number.isFinite(taskId)) throwApiError('validation_failed', 'taskId must be a number')
+  const taskId = Number(getRouterParam(event, 'id'))
+  if (!Number.isFinite(taskId)) throwApiError('validation_failed', 'id must be a number')
 
   const { rows: owner } = await db().execute({
     sql: 'SELECT id FROM tasks WHERE id = ? AND user_id = ?',
@@ -1252,7 +1254,7 @@ export default defineEventHandler(async (event) => {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/api/tasks/[taskId]/subtasks.post.ts server/api/subtasks/[id].patch.ts server/api/subtasks/[id].delete.ts server/api/subtasks/[id]/toggle.post.ts
+git add server/api/tasks/[id]/subtasks.post.ts server/api/subtasks/[id].patch.ts server/api/subtasks/[id].delete.ts server/api/subtasks/[id]/toggle.post.ts
 git commit -m "feat(todos): subtasks CRUD + toggle endpoints"
 ```
 
