@@ -16,6 +16,7 @@ import TaskList from '~/components/Todo/TaskList.vue'
 import TaskDetail from '~/components/Todo/TaskDetail.vue'
 import Snackbar from '~/components/Todo/Snackbar.vue'
 import OfflineBanner from '~/components/Todo/OfflineBanner.vue'
+import InstallHint from '~/components/Todo/InstallHint.vue'
 
 definePageMeta({ layout: 'app', middleware: ['auth'] })
 useHead({ title: 'Todos' })
@@ -189,6 +190,8 @@ async function onDetailRenameSubtask(id: number, title: string) {
 
 const selectedTask = computed(() => selectedTaskId.value === null ? null : tasksStore.tasks.value.find(t => t.id === selectedTaskId.value) ?? null)
 
+const completedCount = computed(() => tasksStore.tasks.value.filter(t => t.completed_at !== null).length)
+
 const viewTitle = computed(() => {
   if (categoryId.value !== null) {
     return categoriesStore.byId.value.get(categoryId.value)?.name ?? 'Category'
@@ -269,5 +272,6 @@ const viewTitle = computed(() => {
 
     <QuickAddSheet :open="sheetOpen" :initial-title="sheetInitialTitle" @close="sheetOpen = false" @submit="onSheetSubmit" />
     <Snackbar />
+    <InstallHint :engagement-hit="completedCount >= 3" />
   </div>
 </template>
