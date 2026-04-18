@@ -119,4 +119,3 @@ export async function idbRemoveMutation(id: number): Promise<void> {
 }
 
 /** Subtasks live inline on tasks in the IDB cache; no dedicated store. */
-export type { Task, Subtask, Category }
