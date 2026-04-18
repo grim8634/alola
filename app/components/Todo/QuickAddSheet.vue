@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useCategories } from '~/composables/useCategories'
 import { todayAsDueAt, startOfToday, formatDueLabel } from '~/utils/date'
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{
+  open: boolean
+  initialTitle?: string
+}>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', payload: {
@@ -25,6 +28,11 @@ const priority = ref<number>(2)
 const dueAt = ref<number | null>(null)
 const subtaskDrafts = ref<string[]>([])
 const newSubtask = ref('')
+
+// When the sheet opens, seed the title from whatever the quick-add bar had.
+watch(() => props.open, (isOpen) => {
+  if (isOpen) title.value = props.initialTitle ?? ''
+})
 
 function reset() {
   title.value = ''

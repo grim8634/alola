@@ -25,11 +25,17 @@ const router = useRouter()
 const { user, logout } = useSession()
 const categoriesStore = useCategories()
 const tasksStore = useTasks()
-const { view, categoryId, selectedTaskId } = useCurrentView()
+const { view, categoryId, selectedTaskId, setFilter } = useCurrentView()
 const snack = useUndoSnackbar()
 
 const sheetOpen = ref(false)
+const sheetInitialTitle = ref('')
 const quickAdd = ref<InstanceType<typeof QuickAdd> | null>(null)
+
+function openSheet(draft = '') {
+  sheetInitialTitle.value = draft
+  sheetOpen.value = true
+}
 
 // Initial load.
 onMounted(async () => {
@@ -195,8 +201,7 @@ const viewTitle = computed(() => {
       :view="view"
       :category-id="categoryId"
       :counts="counts"
-      @update:view="(v) => (view = v)"
-      @update:categoryId="(id) => (categoryId = id)"
+      @select="setFilter"
     />
 
     <!-- Main column: list + optional desktop detail -->
@@ -205,7 +210,17 @@ const viewTitle = computed(() => {
       <section class="flex-1 min-w-0 flex flex-col" :class="selectedTaskId !== null && 'hidden md:flex'">
         <header class="flex items-baseline justify-between px-4 pt-4 lg:pt-6 pb-2">
           <div>
-            <h1 class="font-display text-2xl font-bold tracking-tight">{{ viewTitle }}</h1>
+            <h1 class="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
+              <span>{{ viewTitle }}</span>
+              <button
+                v-if="categoryId !== null"
+                type="button"
+                class="inline-flex items-center justify-center w-6 h-6 rounded-full text-ink-muted hover:text-ink hover:bg-surface-raised text-lg leading-none"
+                aria-label="Clear category filter"
+                title="Clear category filter"
+                @click="categoryId = null"
+              >×</button>
+            </h1>
             <p class="text-xs text-ink-muted">Signed in as {{ user?.email }}</p>
           </div>
           <button class="text-xs uppercase tracking-wider text-ink-muted border border-ink-faint/20 rounded-md px-2 py-1 hover:text-ink" @click="logout">
@@ -213,8 +228,8 @@ const viewTitle = computed(() => {
           </button>
         </header>
 
-        <QuickAdd ref="quickAdd" @submit="onQuickSubmit" @expand="sheetOpen = true" />
-        <FilterChips :view="view" :category-id="categoryId" @update:view="(v) => (view = v)" @update:categoryId="(id) => (categoryId = id)" />
+        <QuickAdd ref="quickAdd" @submit="onQuickSubmit" @expand="openSheet" />
+        <FilterChips :view="view" :category-id="categoryId" @select="setFilter" />
 
         <div class="flex-1 overflow-y-auto px-1 pb-20">
           <TaskList
@@ -249,7 +264,7 @@ const viewTitle = computed(() => {
       </section>
     </div>
 
-    <QuickAddSheet :open="sheetOpen" @close="sheetOpen = false" @submit="onSheetSubmit" />
+    <QuickAddSheet :open="sheetOpen" :initial-title="sheetInitialTitle" @close="sheetOpen = false" @submit="onSheetSubmit" />
     <Snackbar />
   </div>
 </template>

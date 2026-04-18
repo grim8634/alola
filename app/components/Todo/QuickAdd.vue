@@ -4,7 +4,7 @@ import { ref } from 'vue'
 defineProps<{ disabled?: boolean }>()
 const emit = defineEmits<{
   (e: 'submit', title: string): void
-  (e: 'expand'): void
+  (e: 'expand', draft: string): void
 }>()
 
 const title = ref('')
@@ -14,6 +14,11 @@ function submit() {
   const t = title.value.trim()
   if (!t) return
   emit('submit', t)
+  title.value = ''
+}
+
+function expand() {
+  emit('expand', title.value.trim())
   title.value = ''
 }
 
@@ -41,7 +46,7 @@ defineExpose({ focus })
       type="button"
       :title="'Open full new-task sheet'"
       class="flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted hover:text-ink"
-      @click="emit('expand')"
+      @click="expand"
     >
       <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16M4 15h16"/></svg>
     </button>

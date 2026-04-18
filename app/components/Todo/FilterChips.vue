@@ -8,19 +8,16 @@ const props = defineProps<{
   categoryId: number | null
 }>()
 const emit = defineEmits<{
-  (e: 'update:view', v: View): void
-  (e: 'update:categoryId', id: number | null): void
+  (e: 'select', v: View, id: number | null): void
 }>()
 
 const { categories } = useCategories()
 
 function selectView(v: View) {
-  emit('update:categoryId', null)
-  emit('update:view', v)
+  emit('select', v, null)
 }
 function selectCategory(id: number) {
-  emit('update:view', 'all')
-  emit('update:categoryId', id)
+  emit('select', 'all', id)
 }
 
 const anyCategory = computed(() => props.categoryId !== null)
