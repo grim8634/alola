@@ -29,7 +29,13 @@ const { view, categoryId, selectedTaskId } = useCurrentView()
 const snack = useUndoSnackbar()
 
 const sheetOpen = ref(false)
+const sheetInitialTitle = ref('')
 const quickAdd = ref<InstanceType<typeof QuickAdd> | null>(null)
+
+function openSheet(draft = '') {
+  sheetInitialTitle.value = draft
+  sheetOpen.value = true
+}
 
 // Initial load.
 onMounted(async () => {
@@ -213,7 +219,7 @@ const viewTitle = computed(() => {
           </button>
         </header>
 
-        <QuickAdd ref="quickAdd" @submit="onQuickSubmit" @expand="sheetOpen = true" />
+        <QuickAdd ref="quickAdd" @submit="onQuickSubmit" @expand="openSheet" />
         <FilterChips :view="view" :category-id="categoryId" @update:view="(v) => (view = v)" @update:categoryId="(id) => (categoryId = id)" />
 
         <div class="flex-1 overflow-y-auto px-1 pb-20">
@@ -249,7 +255,7 @@ const viewTitle = computed(() => {
       </section>
     </div>
 
-    <QuickAddSheet :open="sheetOpen" @close="sheetOpen = false" @submit="onSheetSubmit" />
+    <QuickAddSheet :open="sheetOpen" :initial-title="sheetInitialTitle" @close="sheetOpen = false" @submit="onSheetSubmit" />
     <Snackbar />
   </div>
 </template>
