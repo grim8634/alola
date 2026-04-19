@@ -15,9 +15,20 @@ export default defineNuxtPlugin(async () => {
   // Hydrate from IDB so the first render is instant (especially after reload / offline).
   await Promise.all([cats.hydrate(), tasks.hydrate(), queue.refreshFromStorage()])
 
-  // Flush triggers.
-  window.addEventListener('online', () => { void queue.flush() })
+  // Flush queue + pull latest server state when we come online or back into view.
+  // This is how changes made on one device show up on another: next time the
+  // second device's tab becomes visible, it refetches.
+  function syncNow() {
+    void queue.flush()
+    void cats.refresh()
+    void tasks.refresh('all')
+  }
+
+  window.addEventListener('online', syncNow)
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void queue.flush()
+    if (document.visibilityState === 'visible') syncNow()
   })
+  // Also refetch on window focus — covers the desktop case where the tab is
+  // always visible but the window loses/regains focus.
+  window.addEventListener('focus', syncNow)
 })
