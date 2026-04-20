@@ -20,6 +20,10 @@ useHead({ title: 'Settings' })
         <span>Offline & sync</span>
         <span class="text-ink-faint">›</span>
       </NuxtLink>
+      <NuxtLink to="/todos/settings/keys" class="flex items-center justify-between px-4 py-3 hover:bg-surface-raised">
+        <span>API keys</span>
+        <span class="text-ink-faint">›</span>
+      </NuxtLink>
     </nav>
   </div>
 </template>
