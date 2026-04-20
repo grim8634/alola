@@ -8,10 +8,10 @@ import {
   CSRF_COOKIE,
   SESSION_TTL_SECONDS,
   SESSION_SLIDE_THRESHOLD_SECONDS,
-  BEARER_PREFIX,
 } from './constants'
 import { generateCsrfToken } from './csrf'
 import { throwApiError } from './errors'
+import { extractPrefix, verifyKey } from './apiKeys'
 
 // `Secure` cookies are rejected on plain http in some browsers (including
 // Safari on localhost, and some WSL2 + Windows-side browser combos). Gate the
@@ -135,13 +135,31 @@ export async function resolveAuth(event: H3Event): Promise<AuthContext | null> {
     }
   }
 
-  // 2. Bearer API key — STUB. Plan 4 implements the full path.
+  // 2. Bearer API key.
   const authz = getHeader(event, 'authorization')
   if (authz && authz.startsWith('Bearer ')) {
-    const token = authz.slice(7)
-    if (token.startsWith(BEARER_PREFIX)) {
-      // Placeholder: real implementation in Plan 4.
-      return null
+    const token = authz.slice(7).trim()
+    const prefix = extractPrefix(token)
+    if (prefix) {
+      const { rows } = await db().execute({
+        sql: `SELECT id, user_id, key_hash FROM api_keys
+              WHERE key_prefix = ? AND revoked_at IS NULL`,
+        args: [prefix],
+      })
+      for (const r of rows) {
+        const match = await verifyKey(token, r.key_hash as string)
+        if (match) {
+          // Touch last_used_at (best-effort; don't block on failure).
+          void db().execute({
+            sql: 'UPDATE api_keys SET last_used_at = ? WHERE id = ?',
+            args: [Math.floor(Date.now() / 1000), Number(r.id)],
+          })
+          return {
+            userId: Number(r.user_id),
+            authMethod: 'bearer',
+          }
+        }
+      }
     }
   }
 
