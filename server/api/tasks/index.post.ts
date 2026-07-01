@@ -1,6 +1,6 @@
 // server/api/tasks/index.post.ts — create a task (+ optional inline subtasks). Idempotent on client_id.
 import { defineEventHandler, readBody, setResponseStatus } from 'h3'
-import { db } from '../../utils/db'
+import { db, requireOwnedCategory, isUniqueViolation } from '../../utils/db'
 import { requireAuth } from '../../utils/auth'
 import { verifyCsrf } from '../../utils/csrf'
 import { rateLimit } from '../../utils/rateLimit'
@@ -41,6 +41,11 @@ export default defineEventHandler(async (event) => {
   const priority = optionalInt(body?.priority, 'priority', { min: 1, max: 3 }) ?? 2
   const dueAt = optionalInt(body?.due_at, 'due_at')
 
+  // A referenced category must belong to the caller (prevents cross-user category refs).
+  if (categoryId !== undefined && categoryId !== null) {
+    await requireOwnedCategory(userId, categoryId)
+  }
+
   // Idempotency: same (user_id, client_id) → return existing row with 200.
   const { rows: existingRows } = await db().execute({
     sql: 'SELECT id FROM tasks WHERE user_id = ? AND client_id = ?',
@@ -56,12 +61,31 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const { lastInsertRowid } = await db().execute({
-    sql: `INSERT INTO tasks (user_id, category_id, title, notes, priority, due_at, client_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    args: [userId, categoryId ?? null, title, notes ?? null, priority, dueAt ?? null, clientId],
-  })
-  const taskId = Number(lastInsertRowid)
+  let taskId: number
+  try {
+    const { lastInsertRowid } = await db().execute({
+      sql: `INSERT INTO tasks (user_id, category_id, title, notes, priority, due_at, client_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [userId, categoryId ?? null, title, notes ?? null, priority, dueAt ?? null, clientId],
+    })
+    taskId = Number(lastInsertRowid)
+  } catch (e) {
+    // Concurrent request with the same client_id won the race — return its row idempotently.
+    if (isUniqueViolation(e)) {
+      const { rows } = await db().execute({
+        sql: 'SELECT id FROM tasks WHERE user_id = ? AND client_id = ?',
+        args: [userId, clientId],
+      })
+      if (rows.length > 0) {
+        const existingId = Number(rows[0].id)
+        const r = await readTaskRow(userId, existingId)
+        const subs = await readSubtaskRows(existingId)
+        setResponseStatus(event, 200)
+        return { task: buildTaskDto(r!, subs) }
+      }
+    }
+    throw e
+  }
 
   // Optional inline subtasks.
   const inlineSubs = Array.isArray(body?.subtasks) ? body.subtasks : []

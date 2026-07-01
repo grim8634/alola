@@ -14,6 +14,12 @@ export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!Number.isFinite(id)) throwApiError('validation_failed', 'id must be a number')
 
+  const { rows: owned } = await db().execute({
+    sql: 'SELECT id FROM categories WHERE id = ? AND user_id = ?',
+    args: [id, userId],
+  })
+  if (owned.length === 0) throwApiError('not_found', 'category not found')
+
   const now = Math.floor(Date.now() / 1000)
   // Bump child tasks' updated_at before deleting the category so delta-sync sees the SET NULL effect.
   await db().batch([

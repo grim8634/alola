@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody, getRouterParam } from 'h3'
-import { db } from '../../utils/db'
+import { db, requireOwnedCategory } from '../../utils/db'
 import { requireAuth } from '../../utils/auth'
 import { verifyCsrf } from '../../utils/csrf'
 import { rateLimit } from '../../utils/rateLimit'
@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
 
   if ('category_id' in (body ?? {})) {
     const c = body.category_id === null ? null : optionalInt(body.category_id, 'category_id')
+    if (c !== null && c !== undefined) await requireOwnedCategory(userId, c)
     sets.push('category_id = ?'); args.push(c ?? null)
   }
 

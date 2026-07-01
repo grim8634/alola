@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody, getRouterParam, setResponseStatus } from 'h3'
-import { db } from '../../../utils/db'
+import { db, isUniqueViolation } from '../../../utils/db'
 import { requireAuth } from '../../../utils/auth'
 import { verifyCsrf } from '../../../utils/csrf'
 import { rateLimit } from '../../../utils/rateLimit'
@@ -40,10 +40,27 @@ export default defineEventHandler(async (event) => {
     return { subtask: dto(rows[0]) }
   }
 
-  const { lastInsertRowid } = await db().execute({
-    sql: 'INSERT INTO subtasks (task_id, title, position, client_id) VALUES (?, ?, ?, ?)',
-    args: [taskId, title, position, clientId],
-  })
+  let lastInsertRowid: bigint | undefined
+  try {
+    ({ lastInsertRowid } = await db().execute({
+      sql: 'INSERT INTO subtasks (task_id, title, position, client_id) VALUES (?, ?, ?, ?)',
+      args: [taskId, title, position, clientId],
+    }))
+  } catch (e) {
+    // Concurrent request with the same client_id won the race — return its row idempotently.
+    if (isUniqueViolation(e)) {
+      const { rows } = await db().execute({
+        sql: `SELECT id, task_id, title, completed_at, position, client_id, created_at, updated_at
+              FROM subtasks WHERE task_id = ? AND client_id = ?`,
+        args: [taskId, clientId],
+      })
+      if (rows.length > 0) {
+        setResponseStatus(event, 200)
+        return { subtask: dto(rows[0]) }
+      }
+    }
+    throw e
+  }
   // Bump parent task's updated_at so delta sync notices the change.
   await db().execute({
     sql: 'UPDATE tasks SET updated_at = ? WHERE id = ?',
