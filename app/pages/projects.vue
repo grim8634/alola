@@ -70,6 +70,12 @@ const projects = [
     url: 'https://plants.1hg.org/',
   },
   {
+    title: 'The Keep',
+    description: 'Asset management for Scout groups and campsites — track kit across locations and storage, log inspections, and keep everything serviceable and photographed, all scoped to your group.',
+    tag: 'Scouts / Tech',
+    url: 'https://thekeep.siftworks.com/',
+  },
+  {
     title: 'NPSI Rocks',
     description: 'The central hub for public EVE Online fleets — helping players find NPSI content, connect with fleet commanders, and get into the action.',
     tag: 'Gaming / Tech',
