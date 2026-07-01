@@ -76,10 +76,14 @@
               <div
                 v-for="col in BOARD_SIZE"
                 :key="'cell-' + (row - 1) + '-' + (col - 1)"
+                role="button"
+                tabindex="0"
+                :aria-label="'Row ' + row + ', column ' + col + (boardState.cells[row - 1][col - 1].letter ? ', letter ' + boardState.cells[row - 1][col - 1].letter : ', empty')"
                 class="aspect-square flex items-center justify-center text-[10px] sm:text-xs font-display font-bold relative select-none"
                 :class="cellClasses(row - 1, col - 1)"
                 :style="cellStyle(row - 1, col - 1)"
                 @click="editCell(row - 1, col - 1)"
+                @keydown.enter.prevent="editCell(row - 1, col - 1)"
               >
                 <!-- Editing input -->
                 <input
@@ -87,6 +91,7 @@
                   ref="cellInputRef"
                   type="text"
                   maxlength="1"
+                  :aria-label="'Edit letter at row ' + row + ', column ' + col"
                   class="absolute inset-0 w-full h-full text-center text-[10px] sm:text-xs font-display font-bold bg-surface border-2 border-accent outline-none uppercase z-10"
                   :value="boardState.cells[row - 1][col - 1].letter || ''"
                   @input="onCellInput($event, row - 1, col - 1)"
@@ -122,6 +127,7 @@
               ref="rackInputRef"
               type="text"
               maxlength="7"
+              aria-label="Edit rack tiles"
               class="w-48 sm:w-56 px-3 py-2 rounded bg-surface border border-accent text-ink font-display font-bold text-center text-lg uppercase tracking-widest outline-none"
               :value="boardState.rack.join('')"
               placeholder="e.g. USENEO?"
@@ -135,6 +141,7 @@
             <button
               v-for="(tile, i) in rackDisplay"
               :key="'rack-' + i"
+              :aria-label="tile ? 'Rack tile ' + tile + ', tap to edit' : 'Empty rack slot, tap to add tiles'"
               class="w-8 h-8 sm:w-10 sm:h-10 rounded flex items-center justify-center font-display font-bold text-sm sm:text-base transition-colors"
               :class="tile ? 'bg-surface-subtle text-ink hover:bg-surface-raised' : 'bg-surface-raised/50 text-ink-faint border border-dashed border-ink-faint/30 hover:border-accent/50'"
               @click="startRackEdit"

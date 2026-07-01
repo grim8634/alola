@@ -253,11 +253,15 @@ function tryPlace(
   } else {
     // Empty square — try placing rack tiles
     const tried = new Set<string>()
+    let blankTried = false
     for (let i = 0; i < available.length; i++) {
       const letter = available[i]
 
       if (letter === '?') {
-        // Blank tile — try all 26 letters
+        // Blank tile — try all 26 letters (only once per rack, but keep
+        // trying the remaining non-blank tiles at this square).
+        if (blankTried) continue
+        blankTried = true
         for (let ch = 65; ch <= 90; ch++) {
           const c = String.fromCharCode(ch)
           if (!node.children[c]) continue
@@ -266,7 +270,6 @@ function tryPlace(
           const newPlaced = [...placed, { row, col, letter: c, isBlank: true }]
           tryPlace(board, trie, row + dr, col + dc, direction, newAvailable, newPlaced, node.children[c], moves)
         }
-        break // Only process blank once
       } else {
         const upper = letter.toUpperCase()
         if (tried.has(upper)) continue

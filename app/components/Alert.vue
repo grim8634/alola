@@ -1,5 +1,5 @@
 <template>
-    <div class="bg-green-500 roudned px-2 py-1 text-white">
+    <div class="bg-surface-raised rounded px-2 py-1 text-ink border border-accent/30">
         This is an alert component.
     </div>
 </template>
