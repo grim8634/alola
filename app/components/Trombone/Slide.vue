@@ -19,8 +19,9 @@ const px = (p: number) => 30 + (p - 1) * 40
       />
       <text
         :x="px(p)"
-        y="40"
+        y="35"
         text-anchor="middle"
+        dominant-baseline="central"
         font-size="13"
         class="font-display font-semibold"
         :class="p === highlight ? 'fill-surface' : 'fill-ink-muted'"
