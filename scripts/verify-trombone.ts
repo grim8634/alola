@@ -1,5 +1,6 @@
 import { NOTES } from '../app/utils/trombone/positions'
 import { staffStep, noteY, ledgerYs, STAFF, STAFF_LINE_YS } from '../app/utils/trombone/notation'
+import { createQuiz, POSITION_CHOICES } from '../app/utils/trombone/quiz'
 
 let failures = 0
 function check(cond: boolean, msg: string) {
@@ -62,6 +63,43 @@ for (const n of NOTES) {
   check(y >= 6 && y <= 134, `${n.id}: noteY ${y} outside viewBox 0..140`)
 }
 check(STAFF.noteX === 150, 'noteX moved — update Staff.vue accidental offset if intentional')
+
+// --- quiz.ts ---
+const quiz = createQuiz()
+let prevId: string | null = null
+let sawName = false
+let sawPosition = false
+for (let i = 0; i < 300; i++) {
+  const q = quiz.next()
+  check(q.note.id !== prevId, `question ${i}: immediate repeat of ${q.note.id}`)
+  prevId = q.note.id
+  check(q.choices.includes(q.answer), `question ${i}: answer '${q.answer}' not in choices`)
+  if (q.mode === 'name') {
+    sawName = true
+    check(q.choices.length === 4, `question ${i}: name mode has ${q.choices.length} choices`)
+    check(new Set(q.choices).size === 4, `question ${i}: duplicate name choices`)
+    check(q.answer === q.note.display, `question ${i}: name answer mismatch`)
+  } else {
+    sawPosition = true
+    check(JSON.stringify([...q.choices].sort()) === JSON.stringify([...POSITION_CHOICES].sort()),
+      `question ${i}: position choices wrong`)
+    check(q.answer === String(q.note.position), `question ${i}: position answer mismatch`)
+  }
+}
+check(sawName && sawPosition, 'both modes must appear over 300 questions')
+
+// weighting: wrong boosts, correct decays, floor and cap respected
+const q2 = createQuiz()
+const first = q2.next()
+const w0 = q2.weightOf(first.note.id)
+q2.submit(first, '__wrong__')
+check(q2.weightOf(first.note.id) === w0 + 4, 'wrong answer must boost weight by 4')
+q2.submit(first, first.answer)
+check(q2.weightOf(first.note.id) === w0 + 3, 'correct answer must decay weight by 1')
+for (let i = 0; i < 10; i++) q2.submit(first, '__wrong__')
+check(q2.weightOf(first.note.id) === 12, 'weight must cap at 12')
+for (let i = 0; i < 30; i++) q2.submit(first, first.answer)
+check(q2.weightOf(first.note.id) === 1, 'weight must floor at baseline 1')
 
 console.log(failures === 0 ? 'verify-trombone: all checks passed' : `verify-trombone: ${failures} FAILURES`)
 process.exit(failures ? 1 : 0)
