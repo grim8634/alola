@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { createQuiz, type Question } from '~/utils/trombone/quiz'
 
-useHead({ title: 'Trombone Trainer — Graeme Lawton' })
+useHead({
+  title: 'Trombone Trainer',
+  meta: [
+    {
+      name: 'description',
+      content: 'Practice reading concert-pitch bass clef on tenor trombone: name notes on the staff and pick their slide positions.',
+    },
+  ],
+})
 
 const quiz = createQuiz()
 const question = ref<Question>(quiz.next())

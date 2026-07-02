@@ -44,8 +44,10 @@ established pattern used by `tic-tac-toe.vue` (labelled "Game") and
 - **Styling:** existing Tailwind design tokens (`surface`, `ink`, `accent`),
   dark theme, `font-display` (Syne) / `font-body` (Lora), `<script setup>` + TS.
 
-Because the site is already a PWA (`@vite-pwa/nuxt`), the page is installable and
-works offline on a phone or tablet on the music stand — no extra work required.
+Note: the site's PWA service worker is scoped to `/todos/` only, so `/trombone`
+requires a network connection. Offline support for the public site is out of scope;
+widening the service-worker scope could be a follow-up if offline practice on a
+music stand proves necessary.
 
 ## The quiz loop
 

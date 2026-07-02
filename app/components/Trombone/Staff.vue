@@ -12,6 +12,7 @@ const accidental = computed(() =>
 </script>
 
 <template>
+  <!-- aria-label intentionally does NOT name the note: it would leak the quiz answer to screen readers -->
   <svg :viewBox="STAFF.viewBox" class="w-full max-w-md mx-auto" role="img" aria-label="Note on a bass-clef staff">
     <!-- Staff lines -->
     <line
