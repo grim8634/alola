@@ -1,4 +1,5 @@
 import { NOTES } from '../app/utils/trombone/positions'
+import { staffStep, noteY, ledgerYs, STAFF, STAFF_LINE_YS } from '../app/utils/trombone/notation'
 
 let failures = 0
 function check(cond: boolean, msg: string) {
@@ -30,6 +31,37 @@ for (let i = 0; i < NOTES.length; i++) {
   const display = n.letter + (n.accidental === 'flat' ? '♭' : n.accidental === 'sharp' ? '♯' : '')
   check(n.display === display, `${n.id}: display '${n.display}', expected '${display}'`)
 }
+
+// --- notation.ts ---
+const stepCases: Array<[string, number]> = [
+  ['E2', -2], ['F2', -1], ['G2', 0], ['B2', 2], ['D3', 4], ['F3', 6],
+  ['A3', 8], ['B3', 9], ['C4', 10], ['D4', 11], ['F4', 13],
+]
+for (const [id, expected] of stepCases) {
+  const n = NOTES.find(x => x.id === id)!
+  check(staffStep(n) === expected, `staffStep(${id}) = ${staffStep(n)}, expected ${expected}`)
+}
+// noteY: on-line notes must land exactly on a staff line
+for (const id of ['G2', 'B2', 'D3', 'F3', 'A3']) {
+  const n = NOTES.find(x => x.id === id)!
+  check(STAFF_LINE_YS.includes(noteY(n)), `noteY(${id}) = ${noteY(n)} not on a staff line`)
+}
+// ledger lines
+const ledgerCases: Array<[string, number[]]> = [
+  ['E2', [128]], ['F2', []], ['G3', []], ['B3', []],
+  ['C4', [32]], ['D4', [32]], ['E4', [32, 16]], ['F4', [32, 16]],
+]
+for (const [id, expected] of ledgerCases) {
+  const n = NOTES.find(x => x.id === id)!
+  check(JSON.stringify(ledgerYs(n)) === JSON.stringify(expected),
+    `ledgerYs(${id}) = ${JSON.stringify(ledgerYs(n))}, expected ${JSON.stringify(expected)}`)
+}
+// every note fits inside the viewBox with room for the notehead (ry 5.5)
+for (const n of NOTES) {
+  const y = noteY(n)
+  check(y >= 6 && y <= 134, `${n.id}: noteY ${y} outside viewBox 0..140`)
+}
+check(STAFF.noteX === 150, 'noteX moved — update Staff.vue accidental offset if intentional')
 
 console.log(failures === 0 ? 'verify-trombone: all checks passed' : `verify-trombone: ${failures} FAILURES`)
 process.exit(failures ? 1 : 0)
